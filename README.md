@@ -1,1 +1,15 @@
-![Demo](https://img.shields.io/website?url=https%3A%2F%2Faknarts.github.io%2Fyew-custom-components%2F)
+Minimal example of a Yew Table making use of [yew-custom-components](https://github.com/aknarts/yew-custom-components)
+
+
+![Demo](https://img.shields.io/website?url=https%3A%2F%2shimwell.github.io%2Fexample_yew_rust_table%2F)
+
+Install instructions on Ubuntu 22.04
+```
+sudo apt-get install curl
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+rustup target add wasm32-unknown-unknown`
+cargo build --target wasm32-unknown-unknown --release
+cargo install --locked trunk
+trunk serve --open
+```
