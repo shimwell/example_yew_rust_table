@@ -1,7 +1,7 @@
 Minimal example of a Yew Table making use of [yew-custom-components](https://github.com/aknarts/yew-custom-components)
 
 
-![Demo](https://img.shields.io/website?url=https%3A%2F%2shimwell.github.io%2Fexample_yew_rust_table%2F)
+![Demo]([https://img.shields.io/website?url=https%3A%2F%2shimwell.github.io%2Fexample_yew_rust_table%2F](https://shimwell.github.io/example_yew_rust_table/#/))
 
 Install instructions on Ubuntu 22.04
 ```
