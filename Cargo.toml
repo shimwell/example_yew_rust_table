@@ -1,0 +1,23 @@
+[package]
+name = "minimal-table"
+version = "0.1.0"
+edition = "2021"
+description = "A minimal overview of the table component from the yew-custom-components library"
+license = "MIT"
+repository = "https://github.com/aknarts/yew-custom-components/tree/main/examples/overview"
+keywords = ["yew", "web-components", "custom-elements", "wasm"]
+categories = ["web-programming", "wasm"]
+
+[dependencies]
+console_error_panic_hook = "0.1"
+gloo-storage = "0.3"
+lazy_static = "1.4"
+serde = { version = "1", features = ["derive"] }
+serde-value = "0.7"
+tracing = "0.1"
+tracing-wasm = "0.2"
+yew = { version = "0.21.0", features = ["csr"] }
+yew-custom-components = { path = "../yew-custom-components", features = ["table", "pagination"] }
+yew-hooks = "0.3"
+yew-router = "0.18"
+web-sys = { version = "0.3", features = ["HtmlInputElement","Document", "Window"] }
