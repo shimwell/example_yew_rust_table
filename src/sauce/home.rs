@@ -36,7 +36,7 @@ pub fn home() -> Html {
 
     // Column definition
     let columns = vec![
-        ColumnBuilder::new("select").orderable(true).short_name("Sum").data_property("select").header_class("user-select-none").build(),
+        ColumnBuilder::new("select").orderable(true).short_name("Select").data_property("select").header_class("user-select-none").build(),
         ColumnBuilder::new("id").orderable(true).short_name("ID").data_property("id").header_class("user-select-none").build(),
         ColumnBuilder::new("name").orderable(true).short_name("Name").data_property("name").header_class("user-select-none").build(),
         ColumnBuilder::new("value").orderable(true).short_name("Value").data_property("value").header_class("user-select-none").build(),
