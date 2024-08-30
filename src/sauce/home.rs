@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use yew::{Callback, classes, function_component, Html, html, TargetCast, use_reducer, use_state};
 use serde::Serialize;
 use web_sys::{console, HtmlInputElement, InputEvent};
@@ -9,15 +8,24 @@ use yew_custom_components::table::{Options, Table};
 use yew_custom_components::table::types::{ColumnBuilder, TableData};
 use plotly::{Plot, Scatter};
 use yew::prelude::*;
+use std::collections::{HashMap, HashSet};
 
+#[function_component(PlotComponent)]
+pub fn plot_component(props: &PlotComponentProps) -> Html {
+    let data = props.data.clone();
 
-#[function_component(App)]
-pub fn plot_component() -> Html {
     let p = use_async::<_, _, ()>({
         let id = "plot-div";
         let mut plot = Plot::new();
-        let trace = Scatter::new(vec![0, 1, 2], vec![2, 1, 0]);
-        plot.add_trace(trace);
+
+        for (index, (x, y, label)) in data.iter() {
+            let trace = Scatter::new(x.clone(), y.clone());
+            // .name(&format!("Index {}", index));
+            console::log_1(&format!("{:?}", x).into());
+            console::log_1(&format!("{:?}", y).into());
+            let trace = Scatter::new(vec![0, 1, 2], vec![2, 1, 0]);
+            plot.add_trace(trace);
+        }
 
         let layout = plotly::Layout::new().title("Displaying a Chart in Yew");
         plot.set_layout(layout);
@@ -36,6 +44,11 @@ pub fn plot_component() -> Html {
     html! {
         <div id="plot-div"></div>
     }
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct PlotComponentProps {
+    pub data: HashMap<usize, (Vec<f64>, Vec<f64>, String)>,
 }
 
 
@@ -108,6 +121,16 @@ pub fn home() -> Html {
         })
     }
 
+    // Create a HashMap for the plot data
+    let mut plot_data = HashMap::new();
+    for index in selected.iter() {
+        // Replace the following with actual x and y values for each index
+        let x_values = vec![0.0, 1.0, 2.0];
+        let y_values = vec![2.0, 1.0, 0.0];
+        let label = format!("Index {}", index);
+        plot_data.insert(*index, (x_values, y_values, label));
+    }
+
     // Handle search input
     let oninput_search = {
         Callback::from(move |e: InputEvent| {
@@ -151,7 +174,7 @@ pub fn home() -> Html {
             <Pagination total={table_data.len()} limit={10} options={pagination_options} on_page={Some(handle_page)}/>
             <h5>{"Sum of selected"} <span class="badge text-bg-secondary">{sum}</span></h5>
             <div id="plot-div"></div>
-            <App />
+            <PlotComponent data={plot_data} />
         </>
     )
 } 
