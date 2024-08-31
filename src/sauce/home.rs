@@ -13,22 +13,37 @@ use std::collections::{HashMap, HashSet};
 #[function_component(PlotComponent)]
 pub fn plot_component(props: &PlotComponentProps) -> Html {
     let data = props.data.clone();
+    
 
     let p = use_async::<_, _, ()>({
         let id = "plot-div";
+        // console::log_1(&format!("Plotting data: {:?}", data).into());
+
+        // Create an empty plot
         let mut plot = Plot::new();
 
         for (index, (x, y, label)) in data.iter() {
+            console::log_1(&format!("{:?}", label).into());
             let trace = Scatter::new(x.clone(), y.clone());
-            // .name(&format!("Index {}", index));
-            console::log_1(&format!("{:?}", x).into());
-            console::log_1(&format!("{:?}", y).into());
-            let trace = Scatter::new(vec![0, 1, 2], vec![2, 1, 0]);
             plot.add_trace(trace);
         }
+        // let trace = Scatter::new(vec![10, 1, 2], vec![2, 1, 0]);
 
-        let layout = plotly::Layout::new().title("Displaying a Chart in Yew");
+        // plot.add_trace(trace);
+        // for (index, (x, y, label)) in data.iter() {
+        //     console::log_1(&format!("{:?}", label).into());
+        //     let trace = Scatter::new(x.clone(), y.clone());
+        //     plot.add_trace(trace);
+        // }
+
+        let layout = plotly::Layout::new().title("Cross section plot");
         plot.set_layout(layout);
+        // for _ in 0..4 {
+        //     let trace = Scatter::new(vec![1, 1, 2], vec![2, 1, 0]);
+        //     plot.add_trace(trace);
+        // }
+        // let trace = Scatter::new(vec![-10, 1, 2], vec![2, 1, 0]);
+        // plot.add_trace(trace);
 
         async move {
             plotly::bindings::new_plot(id, &plot).await;
@@ -54,6 +69,9 @@ pub struct PlotComponentProps {
 
 #[function_component(Home)]
 pub fn home() -> Html {
+
+
+
     // Mock data holder
     let data = use_reducer(crate::types::mock_data::Data::default);
     let mock_data = (*data).clone();
