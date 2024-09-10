@@ -8,6 +8,7 @@ use yew_custom_components::pagination::Pagination;
 use yew_custom_components::table::{Options, Table};
 use yew_custom_components::table::types::{ColumnBuilder, TableData};
 use plotly::{Plot, Scatter};
+use plotly::layout::{Axis, AxisType, Layout};
 use yew::prelude::*;
 use serde::Deserialize;
 // use cached::proc_macro::cached;
@@ -66,7 +67,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
                 .title("Cross sections plotted with XSPlot.com")
                 .show_legend(true)
                 .x_axis(plotly::layout::Axis::new().title("Energy"))
-                .y_axis(plotly::layout::Axis::new().title("Cross section"));
+                .y_axis(plotly::layout::Axis::new().title("Cross section").type_(AxisType::Log));
             plot.set_layout(layout);
 
             plotly::bindings::new_plot(id, &plot).await;
