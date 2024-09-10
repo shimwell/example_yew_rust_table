@@ -38,11 +38,10 @@ pub fn plot_component(props: &PlotProps) -> Html {
 
     let p = use_async::<_, _, ()>({
         let selected_indexes = selected_indexes.clone();
-        let cache = cache.clone();
 
         // this appears to run the first time the code is loaded but not repeated on select box click
         async move {
-            let cache = generate_cache(&selected_indexes).await?;
+            let cache = generate_cache(&selected_indexes).await;
 
             // printing the cache to the console
             console::log_1(&serde_wasm_bindgen::to_value("cache from within the plot_component function").unwrap());
@@ -93,7 +92,7 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
     let mut cache_checkbox_selected = Vec::new();
     console::log_1(&serde_wasm_bindgen::to_value("selected_id").unwrap());
     for &selected_id in selected.iter() {
-        let (energy, cross_section) = get_values_by_id(selected_id as i32).await?;
+        let (energy, cross_section) = get_values_by_id(selected_id as i32).await.expect("Failed to get values by ID");
         cache_energy_values.push(energy);
         cache_cross_section_values.push(cross_section);
         cache_checkbox_selected.push(true);
@@ -119,7 +118,7 @@ async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Erro
         .await?
         .json()
         .await?;
-    Ok((downloaded_reaction_data.energy_values, downloaded_reaction_Data.cross_section_values))
+    Ok((downloaded_reaction_data.energy_values, downloaded_reaction_data.cross_section_values))
 }
 
 #[function_component(Home)]
