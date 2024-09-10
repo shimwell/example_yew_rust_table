@@ -8,7 +8,7 @@ use yew_custom_components::pagination::Pagination;
 use yew_custom_components::table::{Options, Table};
 use yew_custom_components::table::types::{ColumnBuilder, TableData};
 use plotly::{Plot, Scatter};
-use plotly::layout::{Axis, AxisType, Layout};
+use plotly::layout::{AxisType};
 use yew::prelude::*;
 use serde::Deserialize;
 // use cached::proc_macro::cached;
