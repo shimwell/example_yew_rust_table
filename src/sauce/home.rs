@@ -114,11 +114,13 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
 
 #[cached(result = true, key = "()", convert = r#"{}"#)]
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
-    let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/adding_json_reading/data_{}.json", id);
+    let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/main/data_{}.json", id);
     let downloaded_reaction_data: ReactionData = reqwest::get(url)
         .await?
         .json()
         .await?;
+        console::log_1(&serde_wasm_bindgen::to_value("downloaded data").unwrap());
+        console::log_1(&serde_wasm_bindgen::to_value(&downloaded_reaction_data).unwrap());
     Ok((downloaded_reaction_data.energy_values, downloaded_reaction_data.cross_section_values))
 }
 
