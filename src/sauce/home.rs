@@ -202,6 +202,7 @@ pub fn home() -> Html {
 
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
+        .show_first_last(true)
         .list_classes(vec!(String::from("pagination")))
         .item_classes(vec!(String::from("page-item")))
         .link_classes(vec!(String::from("page-link")))
