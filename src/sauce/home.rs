@@ -36,17 +36,18 @@ pub struct PlotProps {
 pub fn plot_component(props: &PlotProps) -> Html {
     let selected_indexes = &props.selected_indexes;
 
-    let cache = generate_cache(&selected_indexes);
-
-    // printing the cache to the console
-    console::log_1(&serde_wasm_bindgen::to_value("cache from within the plot_component function").unwrap());
-    console::log_1(&serde_wasm_bindgen::to_value(&cache).unwrap());
-
     let p = use_async::<_, _, ()>({
+        let selected_indexes = selected_indexes.clone();
         let cache = cache.clone();
 
         // this appears to run the first time the code is loaded but not repeated on select box click
         async move {
+            let cache = generate_cache(&selected_indexes).await?;
+
+            // printing the cache to the console
+            console::log_1(&serde_wasm_bindgen::to_value("cache from within the plot_component function").unwrap());
+            console::log_1(&serde_wasm_bindgen::to_value(&cache).unwrap());
+
             let id = "plot-div";
             let mut plot = Plot::new();
 
