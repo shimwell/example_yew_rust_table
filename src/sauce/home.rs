@@ -9,6 +9,17 @@ use yew_custom_components::table::{Options, Table};
 use yew_custom_components::table::types::{ColumnBuilder, TableData};
 use plotly::{Plot, Scatter};
 use yew::prelude::*;
+use serde::Deserialize;
+use cached::proc_macro::cached;
+
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ReactionData {
+    #[serde(rename = "energy")]
+    energy_values: Vec<f64>,
+    #[serde(rename = "cross_section")]
+    cross_section_values: Vec<f64>,
+}
 
 #[derive(PartialEq, Clone, Serialize)]
 pub struct XsCache {
@@ -26,17 +37,17 @@ pub struct PlotProps {
 pub fn plot_component(props: &PlotProps) -> Html {
     let selected_indexes = &props.selected_indexes;
 
-    let cache = generate_cache(&selected_indexes);
-
-    // printing the cache to the console
-    console::log_1(&serde_wasm_bindgen::to_value("cache from within the plot_component function").unwrap());
-    console::log_1(&serde_wasm_bindgen::to_value(&cache).unwrap());
-
     let p = use_async::<_, _, ()>({
-        let cache = cache.clone();
+        let selected_indexes = selected_indexes.clone();
 
         // this appears to run the first time the code is loaded but not repeated on select box click
         async move {
+            let cache = generate_cache(&selected_indexes).await;
+
+            // printing the cache to the console
+            console::log_1(&serde_wasm_bindgen::to_value("cache from within the plot_component function").unwrap());
+            console::log_1(&serde_wasm_bindgen::to_value(&cache).unwrap());
+
             let id = "plot-div";
             let mut plot = Plot::new();
 
@@ -73,7 +84,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
     }
 }
 
-fn generate_cache(selected: &HashSet<usize>) -> XsCache {
+async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
     // as nothing is selected initially this returns an empy strut
     // I need this calling and updating the cache on every checkbox interaction
 
@@ -82,7 +93,7 @@ fn generate_cache(selected: &HashSet<usize>) -> XsCache {
     let mut cache_checkbox_selected = Vec::new();
     console::log_1(&serde_wasm_bindgen::to_value("selected_id").unwrap());
     for &selected_id in selected.iter() {
-        let (energy, cross_section) = get_values_by_id(selected_id as i32);
+        let (energy, cross_section) = get_values_by_id(selected_id as i32).await.expect("Failed to get values by ID");
         cache_energy_values.push(energy);
         cache_cross_section_values.push(cross_section);
         cache_checkbox_selected.push(true);
@@ -101,42 +112,14 @@ fn generate_cache(selected: &HashSet<usize>) -> XsCache {
 
 }
 
-fn get_values_by_id(id: i32) -> (Vec<f64>, Vec<f64>) {
-    // this is a temporary function, in the future this would be a downloading of JSON data from a URL.
-    // hence the desire to cache any downloaded entries so that if they are unselected and then reselected they don't need to be downloaded twice.
-    match id {
-        1 => (vec![1.0, 1.1, 1.2], vec![10.0, 10.1, 10.2]),
-        2 => (vec![2.0, 2.1, 2.2], vec![20.0, 20.1, 20.2]),
-        3 => (vec![3.0, 3.1, 3.2], vec![30.0, 30.1, 30.2]),
-        4 => (vec![4.0, 4.1, 4.2], vec![40.0, 40.1, 40.2]),
-        5 => (vec![5.0, 5.1, 5.2], vec![50.0, 50.1, 50.2]),
-        6 => (vec![6.0, 6.1, 6.2], vec![60.0, 60.1, 60.2]),
-        7 => (vec![7.0, 7.1, 7.2], vec![70.0, 70.1, 70.2]),
-        8 => (vec![8.0, 8.1, 8.2], vec![80.0, 80.1, 80.2]),
-        9 => (vec![9.0, 9.1, 9.2], vec![90.0, 90.1, 90.2]),
-        10 => (vec![10.0, 10.1, 10.2], vec![100.0, 100.1, 100.2]),
-        11 => (vec![11.0, 11.1, 11.2], vec![110.0, 110.1, 110.2]),
-        12 => (vec![12.0, 12.1, 12.2], vec![120.0, 120.1, 120.2]),
-        13 => (vec![13.0, 13.1, 13.2], vec![130.0, 130.1, 130.2]),
-        14 => (vec![14.0, 14.1, 14.2], vec![140.0, 140.1, 140.2]),
-        15 => (vec![15.0, 15.1, 15.2], vec![150.0, 150.1, 150.2]),
-        16 => (vec![16.0, 16.1, 16.2], vec![160.0, 160.1, 160.2]),
-        17 => (vec![17.0, 17.1, 17.2], vec![170.0, 170.1, 170.2]),
-        18 => (vec![18.0, 18.1, 18.2], vec![180.0, 180.1, 180.2]),
-        19 => (vec![19.0, 19.1, 19.2], vec![190.0, 190.1, 190.2]),
-        20 => (vec![20.0, 20.1, 20.2], vec![200.0, 200.1, 200.2]),
-        21 => (vec![21.0, 21.1, 21.2], vec![210.0, 210.1, 210.2]),
-        22 => (vec![22.0, 22.1, 22.2], vec![220.0, 220.1, 220.2]),
-        23 => (vec![23.0, 23.1, 23.2], vec![230.0, 230.1, 230.2]),
-        24 => (vec![24.0, 24.1, 24.2], vec![240.0, 240.1, 240.2]),
-        25 => (vec![25.0, 25.1, 25.2], vec![250.0, 250.1, 250.2]),
-        26 => (vec![26.0, 26.1, 26.2], vec![260.0, 260.1, 260.2]),
-        27 => (vec![27.0, 27.1, 27.2], vec![270.0, 270.1, 270.2]),
-        28 => (vec![28.0, 28.1, 28.2], vec![280.0, 280.1, 280.2]),
-        29 => (vec![29.0, 29.1, 29.2], vec![290.0, 290.1, 290.2]),
-        30 => (vec![30.0, 30.1, 30.2], vec![300.0, 300.1, 300.2]),
-        _ => unreachable!(), // Default case for invalid ids
-    }
+#[cached(result = true, key = "()", convert = r#"{}"#)]
+async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
+    let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/adding_json_reading/data_{}.json", id);
+    let downloaded_reaction_data: ReactionData = reqwest::get(url)
+        .await?
+        .json()
+        .await?;
+    Ok((downloaded_reaction_data.energy_values, downloaded_reaction_data.cross_section_values))
 }
 
 #[function_component(Home)]
