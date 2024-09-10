@@ -14,7 +14,9 @@ use serde::Deserialize;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ReactionData {
+    #[serde(rename = "energy")]
     energy_values: Vec<f64>,
+    #[serde(rename = "cross_section")]
     cross_section_values: Vec<f64>,
 }
 
@@ -81,7 +83,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
     }
 }
 
-fn generate_cache(selected: &HashSet<usize>) -> XsCache {
+async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
     // as nothing is selected initially this returns an empy strut
     // I need this calling and updating the cache on every checkbox interaction
 
@@ -90,7 +92,7 @@ fn generate_cache(selected: &HashSet<usize>) -> XsCache {
     let mut cache_checkbox_selected = Vec::new();
     console::log_1(&serde_wasm_bindgen::to_value("selected_id").unwrap());
     for &selected_id in selected.iter() {
-        let (energy, cross_section) = get_values_by_id(selected_id as i32);
+        let (energy, cross_section) = get_values_by_id(selected_id as i32).await?;
         cache_energy_values.push(energy);
         cache_cross_section_values.push(cross_section);
         cache_checkbox_selected.push(true);
@@ -110,15 +112,13 @@ fn generate_cache(selected: &HashSet<usize>) -> XsCache {
 }
 
 
-
-#[tokio::main]
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
     let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/adding_json_reading/data_{}.json", id);
-    let downloaded_reaction_Data: ReactionData = reqwest::get(url)
+    let downloaded_reaction_data: ReactionData = reqwest::get(url)
         .await?
         .json()
         .await?;
-    Ok((downloaded_reaction_Data.energy_values, downloaded_reaction_Data.cross_section_values))
+    Ok((downloaded_reaction_data.energy_values, downloaded_reaction_Data.cross_section_values))
 }
 
 #[function_component(Home)]
