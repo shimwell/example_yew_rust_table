@@ -10,6 +10,7 @@ use yew_custom_components::table::types::{ColumnBuilder, TableData};
 use plotly::{Plot, Scatter};
 use yew::prelude::*;
 use serde::Deserialize;
+use cached::proc_macro::cached;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -111,7 +112,7 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
 
 }
 
-
+#[cached(result = true, key = "()", convert = r#"{}"#)]
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
     let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/adding_json_reading/data_{}.json", id);
     let downloaded_reaction_data: ReactionData = reqwest::get(url)
