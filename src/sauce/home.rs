@@ -229,7 +229,7 @@ pub fn home() -> Html {
                 <input class="form-control" type="text" id="search" placeholder="Search" oninput={oninput_search} />
             </div>
             <Table<TableLine> options={options.clone()} limit={Some(10)} page={current_page} search={search.clone()} classes={classes!("table", "table-hover")} columns={columns.clone()} data={table_data.clone()} orderable={true}/>
-            <Pagination total={table_data.len()} limit={10} options={pagination_options} on_page={Some(handle_page)}/>
+            <Pagination total={table_data.len()} limit={10} max_pages={6} options={pagination_options} on_page={Some(handle_page)}/>
             <h5>{"Number selected"} <span class="badge text-bg-secondary">{sum}</span></h5>
             <div id="plot-div"></div>
             <App selected_indexes={(*selected_indexes.current()).clone()} />
