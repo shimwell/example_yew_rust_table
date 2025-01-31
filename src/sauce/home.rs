@@ -36,40 +36,41 @@ pub struct PlotProps {
     pub selected_indexes: HashSet<usize>,
 }
 
+
+
 #[function_component(App)]
 pub fn plot_component(props: &PlotProps) -> Html {
     let selected_indexes = &props.selected_indexes;
+    let is_log = use_state(|| true);
 
     let p = use_async::<_, _, ()>({
         let selected_indexes = selected_indexes.clone();
+        let is_log = is_log.clone();
 
-        // this appears to run the first time the code is loaded but not repeated on select box click
         async move {
             let cache = generate_cache(&selected_indexes).await;
-
-            // printing the cache to the console
-            console::log_1(&serde_wasm_bindgen::to_value("cache from within the plot_component function").unwrap());
-            console::log_1(&serde_wasm_bindgen::to_value(&cache).unwrap());
 
             let id = "plot-div";
             let mut plot = Plot::new();
 
-            console::log_1(&serde_wasm_bindgen::to_value("cache.energy_values").unwrap());
-            console::log_1(&serde_wasm_bindgen::to_value(&cache.energy_values).unwrap());
             for (i, (energy, cross_section)) in cache.energy_values.iter().zip(&cache.cross_section_values).enumerate() {
                 if cache.checkbox_selected[i] {
                     let trace = Scatter::new(energy.clone(), cross_section.clone())
-                        .name(&format!("Scatter Plot {}", i)
-                    );
+                        .name(&format!("Scatter Plot {}", i));
                     plot.add_trace(trace);
                 }
             }
+
+            let y_axis = plotly::layout::Axis::new()
+                .title("Cross section")
+                .type_(if *is_log { AxisType::Log } else { AxisType::Linear });
 
             let layout = plotly::Layout::new()
                 .title("Cross sections plotted with XSPlot.com")
                 .show_legend(true)
                 .x_axis(plotly::layout::Axis::new().title("Energy"))
-                .y_axis(plotly::layout::Axis::new().title("Cross section").type_(AxisType::Log));
+                .y_axis(y_axis);
+            
             plot.set_layout(layout);
 
             plotly::bindings::new_plot(id, &plot).await;
@@ -77,15 +78,30 @@ pub fn plot_component(props: &PlotProps) -> Html {
         }
     });
 
-    // Only on first render
-    use_effect_with(selected_indexes.clone(), move |_| {
+    use_effect_with((selected_indexes.clone(), is_log.clone()), move |_| {
         p.run();
     });
 
+    let onclick_toggle = {
+        let is_log = is_log.clone();
+        Callback::from(move |_| {
+            is_log.set(!*is_log);
+        })
+    };
+
     html! {
-        <div id="plot-div"></div>
+        <div>
+            <button 
+                onclick={onclick_toggle}
+                class="btn btn-primary mb-2"
+            >
+                {if *is_log { "Switch to Linear Scale" } else { "Switch to Log Scale" }}
+            </button>
+            <div id="plot-div"></div>
+        </div>
     }
 }
+
 
 async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
     // as nothing is selected initially this returns an empy strut
@@ -286,8 +302,6 @@ pub fn home() -> Html {
         })
     };
 
-
-    
     html!(
         <>
             <h1>{"Minimal table Example"}</h1>
@@ -300,12 +314,10 @@ pub fn home() -> Html {
             <Table<TableLine> options={options.clone()} limit={Some(10)} page={current_page} search={search.clone()} classes={classes!("table", "table-hover")} columns={columns.clone()} data={table_data.clone()} orderable={true}/>
             <Pagination total={table_data.len()} limit={10} max_pages={6} options={pagination_options} on_page={Some(handle_page)}/>
             <h5>{"Number selected"} <span class="badge text-bg-secondary">{sum}</span></h5>
-            <div id="plot-div"></div>
             <App selected_indexes={(*selected_indexes.current()).clone()} />
         </>
     )
-} 
-
+}
 
 
 
