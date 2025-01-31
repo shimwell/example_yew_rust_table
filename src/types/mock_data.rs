@@ -1,38 +1,27 @@
-#[derive(Clone, Debug, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Data {
     pub data: Vec<(i32, String, i64)>,
 }
 
 impl Default for Data {
     fn default() -> Self {
-        Self {
-            data: vec![
-                (0, String::from("Big Brown Fox"), 0),
-                (1, String::from("Yellow Brick Road"), 5),
-                (2, String::from("Lorem Ipsum"), 6),
-                (3, String::from("Quick Brown Fox"), 6),
-                (4, String::from("Lazy Dog"), 8),
-                (5, String::from("Jumps Over"), 10),
-                (6, String::from("The Moon"), 12),
-                (7, String::from("Sunset Boulevard"), 14),
-                (8, String::from("Rust Programming"), 16),
-                (9, String::from("GitHub Copilot"), 18),
-                (10, String::from("Artificial Intelligence"), 20),
-                (11, String::from("Machine Learning"), 22),
-                (12, String::from("Deep Learning"), 24),
-                (13, String::from("Neural Networks"), 26),
-                (14, String::from("Data Science"), 28),
-                (15, String::from("Web Development"), 30),
-                (16, String::from("Mobile Development"), 32),
-                (17, String::from("Game Development"), 34),
-                (18, String::from("Virtual Reality"), 36),
-                (19, String::from("Augmented Reality"), 38),
-                (20, String::from("Cloud Computing"), 40),
-                (21, String::from("Internet of Things"), 42),
-                (22, String::from("Cybersecurity"), 44)
-            ],
-        }
+        let data = load_data_from_str(include_str!("table_data.json")).expect("Failed to load data from embedded JSON");
+        Self { data }
     }
+}
+
+fn load_data_from_str(json_str: &str) -> Result<Vec<(i32, String, i64)>, Box<dyn std::error::Error>> {
+    let json_data: Vec<serde_json::Value> = serde_json::from_str(json_str)?;
+    let mut data = Vec::new();
+    for item in json_data {
+        let id = item["id"].as_i64().unwrap() as i32;
+        let name = item["name"].as_str().unwrap().to_string();
+        let value = item["value"].as_i64().unwrap();
+        data.push((id, name, value));
+    }
+    Ok(data)
 }
 
 pub enum DataActions {

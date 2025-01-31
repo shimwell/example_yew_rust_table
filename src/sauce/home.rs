@@ -11,6 +11,7 @@ use plotly::{Plot, Scatter};
 use plotly::layout::{AxisType};
 use yew::prelude::*;
 use serde::Deserialize;
+use crate::types::mock_data::Data;
 // use cached::proc_macro::cached;
 
 
@@ -18,7 +19,8 @@ use serde::Deserialize;
 struct ReactionData {
     #[serde(rename = "energy")]
     energy_values: Vec<f64>,
-    #[serde(rename = "cross_section")]
+    #[serde(rename = "cross section")]
+    // #[serde(rename = "cross_section")]
     cross_section_values: Vec<f64>,
 }
 
@@ -115,7 +117,18 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
 
 // #[cached(result = true, key = "()", convert = r#"{}"#)]
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
-    let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/main/data_{}.json", id);
+
+    let data = crate::types::mock_data::Data::default();
+
+    let Some(name) = get_name_by_id(&data, id) else { todo!() };
+    let output = convert_string(name);
+    console::log_1(&serde_wasm_bindgen::to_value(&"output").unwrap());
+    console::log_1(&serde_wasm_bindgen::to_value(&output).unwrap());
+
+    // let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/main/data_{}.json", id);
+    let url = format!("https://raw.githubusercontent.com/openmc-data-storage/ENDF-B-VIII.0-NNDC-json/refs/heads/main/json_files/{output}.json");
+
+    console::log_1(&serde_wasm_bindgen::to_value(&url).unwrap());
     let downloaded_reaction_data: ReactionData = reqwest::get(url)
         .await?
         .json()
@@ -124,6 +137,61 @@ async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Erro
         console::log_1(&serde_wasm_bindgen::to_value(&downloaded_reaction_data).unwrap());
     Ok((downloaded_reaction_data.energy_values, downloaded_reaction_data.cross_section_values))
 }
+
+fn get_name_by_id(data: &Data, id: i32) -> Option<&String> {
+    console::log_1(&serde_wasm_bindgen::to_value("get_name_by_id").unwrap());
+    console::log_1(&serde_wasm_bindgen::to_value(&id).unwrap());
+    let name = data.data.iter().find(|&&(i, _, _)| i == id).map(|&(_, ref name, _)| name);
+    if let Some(name) = name {
+        console::log_1(&serde_wasm_bindgen::to_value(&format!("Found name: {}", name)).unwrap());
+    } else {
+        console::log_1(&serde_wasm_bindgen::to_value("Name not found").unwrap());
+    }
+    name
+}
+
+
+fn convert_string(input: &str) -> String {
+    let mut result = input.to_string();
+
+    // TODO the need different units
+    // Remove "damage-energy" if present
+    result = result.replace("damage-energy", "");
+    // Remove "damage-energy" if present
+    result = result.replace("heating", "");
+
+    // Extract the first token
+    let first_token = result.split_whitespace().next().unwrap_or("");
+
+    // Separate letters and numbers
+    let mut letters = String::new();
+    let mut numbers = String::new();
+    for c in first_token.chars() {
+        if c.is_alphabetic() {
+            letters.push(c);
+        } else if c.is_numeric() {
+            numbers.push(c);
+        }
+    }
+
+    let formatted_first_token = format!("{}_{}", letters, numbers);
+
+    // Replace the first token in the result
+    result = result.replacen(first_token, &formatted_first_token, 1);
+
+
+    while let Some(start) = result.find('(') {
+        if let Some(end) = result[start..].find(')') {
+            result.replace_range(start..=end + start, "");
+        } else {
+            break;
+        }
+    }
+    result = result.replace(" MT", "n_");
+    result = result.replace(" ", "_");
+    result
+}
+
 
 #[function_component(Home)]
 pub fn home() -> Html {
@@ -203,6 +271,7 @@ pub fn home() -> Html {
 
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
+        .show_first_last(true)
         .list_classes(vec!(String::from("pagination")))
         .item_classes(vec!(String::from("page-item")))
         .link_classes(vec!(String::from("page-link")))
@@ -229,7 +298,7 @@ pub fn home() -> Html {
                 <input class="form-control" type="text" id="search" placeholder="Search" oninput={oninput_search} />
             </div>
             <Table<TableLine> options={options.clone()} limit={Some(10)} page={current_page} search={search.clone()} classes={classes!("table", "table-hover")} columns={columns.clone()} data={table_data.clone()} orderable={true}/>
-            <Pagination total={table_data.len()} limit={10} options={pagination_options} on_page={Some(handle_page)}/>
+            <Pagination total={table_data.len()} limit={10} max_pages={6} options={pagination_options} on_page={Some(handle_page)}/>
             <h5>{"Number selected"} <span class="badge text-bg-secondary">{sum}</span></h5>
             <div id="plot-div"></div>
             <App selected_indexes={(*selected_indexes.current()).clone()} />
