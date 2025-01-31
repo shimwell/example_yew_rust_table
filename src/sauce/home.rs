@@ -41,11 +41,11 @@ pub struct PlotProps {
 #[function_component(App)]
 pub fn plot_component(props: &PlotProps) -> Html {
     let selected_indexes = &props.selected_indexes;
-    let is_log = use_state(|| true);
+    let is_y_log = use_state(|| true);
 
     let p = use_async::<_, _, ()>({
         let selected_indexes = selected_indexes.clone();
-        let is_log = is_log.clone();
+        let is_y_log = is_y_log.clone();
 
         async move {
             let cache = generate_cache(&selected_indexes).await;
@@ -63,7 +63,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
 
             let y_axis = plotly::layout::Axis::new()
                 .title("Cross section")
-                .type_(if *is_log { AxisType::Log } else { AxisType::Linear });
+                .type_(if *is_y_log { AxisType::Log } else { AxisType::Linear });
 
             let layout = plotly::Layout::new()
                 .title("Cross sections plotted with XSPlot.com")
@@ -78,24 +78,24 @@ pub fn plot_component(props: &PlotProps) -> Html {
         }
     });
 
-    use_effect_with((selected_indexes.clone(), is_log.clone()), move |_| {
+    use_effect_with((selected_indexes.clone(), is_y_log.clone()), move |_| {
         p.run();
     });
 
-    let onclick_toggle = {
-        let is_log = is_log.clone();
+    let onclick_toggle_y_log = {
+        let is_y_log = is_y_log.clone();
         Callback::from(move |_| {
-            is_log.set(!*is_log);
+            is_y_log.set(!*is_y_log);
         })
     };
 
     html! {
         <div>
             <button 
-                onclick={onclick_toggle}
+                onclick={onclick_toggle_y_log}
                 class="btn btn-primary mb-2"
             >
-                {if *is_log { "Switch to Linear Scale" } else { "Switch to Log Scale" }}
+                {if *is_y_log { "Switch to Linear Scale" } else { "Switch to Log Scale" }}
             </button>
             <div id="plot-div"></div>
         </div>
