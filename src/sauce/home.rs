@@ -152,11 +152,42 @@ fn get_name_by_id(data: &Data, id: i32) -> Option<&String> {
 
 fn convert_string(input: &str) -> String {
     let mut result = input.to_string();
+
+    // TODO the need different units
+    // Remove "damage-energy" if present
+    result = result.replace("damage-energy", "");
+    // Remove "damage-energy" if present
+    result = result.replace("heating", "");
+
+    // Extract the first token
+    let first_token = result.split_whitespace().next().unwrap_or("");
+
+    // Separate letters and numbers
+    let mut letters = String::new();
+    let mut numbers = String::new();
+    for c in first_token.chars() {
+        if c.is_alphabetic() {
+            letters.push(c);
+        } else if c.is_numeric() {
+            numbers.push(c);
+        }
+    }
+
+    let formatted_first_token = format!("{}_{}", letters, numbers);
+
+    // Replace the first token in the result
+    result = result.replacen(first_token, &formatted_first_token, 1);
+
+
+    while let Some(start) = result.find('(') {
+        if let Some(end) = result[start..].find(')') {
+            result.replace_range(start..=end + start, "");
+        } else {
+            break;
+        }
+    }
+    result = result.replace(" MT", "n_");
     result = result.replace(" ", "_");
-    result = result.replace("(", "");
-    result = result.replace(")", "");
-    result = result.replace(",", "");
-    result = result.replace("MT", "");
     result
 }
 
