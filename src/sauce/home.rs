@@ -42,10 +42,12 @@ pub struct PlotProps {
 pub fn plot_component(props: &PlotProps) -> Html {
     let selected_indexes = &props.selected_indexes;
     let is_y_log = use_state(|| true);
+    let is_x_log = use_state(|| true);
 
     let p = use_async::<_, _, ()>({
         let selected_indexes = selected_indexes.clone();
         let is_y_log = is_y_log.clone();
+        let is_x_log = is_x_log.clone();
 
         async move {
             let cache = generate_cache(&selected_indexes).await;
@@ -65,10 +67,14 @@ pub fn plot_component(props: &PlotProps) -> Html {
                 .title("Cross section")
                 .type_(if *is_y_log { AxisType::Log } else { AxisType::Linear });
 
+            let x_axis = plotly::layout::Axis::new()
+                .title("Energy")
+                .type_(if *is_x_log { AxisType::Log } else { AxisType::Linear });
+
             let layout = plotly::Layout::new()
                 .title("Cross sections plotted with XSPlot.com")
                 .show_legend(true)
-                .x_axis(plotly::layout::Axis::new().title("Energy"))
+                .x_axis(x_axis)
                 .y_axis(y_axis);
             
             plot.set_layout(layout);
@@ -78,7 +84,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
         }
     });
 
-    use_effect_with((selected_indexes.clone(), is_y_log.clone()), move |_| {
+    use_effect_with((selected_indexes.clone(), is_y_log.clone(), is_x_log.clone()), move |_| {
         p.run();
     });
 
@@ -89,13 +95,27 @@ pub fn plot_component(props: &PlotProps) -> Html {
         })
     };
 
+
+    let onclick_toggle_x_log = {
+        let is_x_log = is_x_log.clone();
+        Callback::from(move |_| {
+            is_x_log.set(!*is_x_log);
+        })
+    };
+
     html! {
         <div>
             <button 
                 onclick={onclick_toggle_y_log}
                 class="btn btn-primary mb-2"
             >
-                {if *is_y_log { "Switch to Linear Scale" } else { "Switch to Log Scale" }}
+                {if *is_y_log { "Switch Y to Linear Scale" } else { "Switch Y to Log Scale" }}
+            </button>
+            <button 
+                onclick={onclick_toggle_x_log}
+                class="btn btn-primary mb-2"
+            >
+                {if *is_x_log { "Switch X to Linear Scale" } else { "Switch X to Log Scale" }}
             </button>
             <div id="plot-div"></div>
         </div>
