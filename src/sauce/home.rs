@@ -12,15 +12,14 @@ use plotly::layout::{AxisType};
 use yew::prelude::*;
 use serde::Deserialize;
 use crate::types::mock_data::Data;
-// use cached::proc_macro::cached;
-
+use serde_value::Value;
+use yew_custom_components::table::error::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ReactionData {
     #[serde(rename = "energy")]
     energy_values: Vec<f64>,
     #[serde(rename = "cross section")]
-    // #[serde(rename = "cross_section")]
     cross_section_values: Vec<f64>,
 }
 
@@ -35,8 +34,6 @@ pub struct XsCache {
 pub struct PlotProps {
     pub selected_indexes: HashSet<usize>,
 }
-
-
 
 #[function_component(App)]
 pub fn plot_component(props: &PlotProps) -> Html {
@@ -95,7 +92,6 @@ pub fn plot_component(props: &PlotProps) -> Html {
         })
     };
 
-
     let onclick_toggle_x_log = {
         let is_x_log = is_x_log.clone();
         Callback::from(move |_| {
@@ -122,11 +118,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
     }
 }
 
-
 async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
-    // as nothing is selected initially this returns an empy strut
-    // I need this calling and updating the cache on every checkbox interaction
-
     let mut cache_energy_values = Vec::new();
     let mut cache_cross_section_values = Vec::new();
     let mut cache_checkbox_selected = Vec::new();
@@ -137,23 +129,17 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
         cache_cross_section_values.push(cross_section);
         cache_checkbox_selected.push(true);
 
-        // Print the selected ID to the console
-        
         console::log_1(&selected_id.clone().into());
     }
 
-    // not sure why but this appears to be returning the same sort of data as the below hard coded version but it doesn't plot
     XsCache {
         energy_values: cache_energy_values,
         cross_section_values: cache_cross_section_values,
         checkbox_selected: cache_checkbox_selected,
     }
-
 }
 
-// #[cached(result = true, key = "()", convert = r#"{}"#)]
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
-
     let data = crate::types::mock_data::Data::default();
 
     let Some(name) = get_name_by_id(&data, id) else { todo!() };
@@ -161,7 +147,6 @@ async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Erro
     console::log_1(&serde_wasm_bindgen::to_value(&"output").unwrap());
     console::log_1(&serde_wasm_bindgen::to_value(&output).unwrap());
 
-    // let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/main/data_{}.json", id);
     let url = format!("https://raw.githubusercontent.com/openmc-data-storage/ENDF-B-VIII.0-NNDC-json/refs/heads/main/json_files/{output}.json");
 
     console::log_1(&serde_wasm_bindgen::to_value(&url).unwrap());
@@ -186,20 +171,14 @@ fn get_name_by_id(data: &Data, id: i32) -> Option<&String> {
     name
 }
 
-
 fn convert_string(input: &str) -> String {
     let mut result = input.to_string();
 
-    // TODO the need different units
-    // Remove "damage-energy" if present
     result = result.replace("damage-energy", "");
-    // Remove "damage-energy" if present
     result = result.replace("heating", "");
 
-    // Extract the first token
     let first_token = result.split_whitespace().next().unwrap_or("");
 
-    // Separate letters and numbers
     let mut letters = String::new();
     let mut numbers = String::new();
     for c in first_token.chars() {
@@ -212,9 +191,7 @@ fn convert_string(input: &str) -> String {
 
     let formatted_first_token = format!("{}_{}", letters, numbers);
 
-    // Replace the first token in the result
     result = result.replacen(first_token, &formatted_first_token, 1);
-
 
     while let Some(start) = result.find('(') {
         if let Some(end) = result[start..].find(')') {
@@ -228,25 +205,109 @@ fn convert_string(input: &str) -> String {
     result
 }
 
+#[derive(Clone, Serialize, Debug, Default)]
+struct TableLine {
+    pub original_index: usize,
+    pub id: i32,
+    pub name: String,
+    pub value: i64,
+    pub checked: bool,
+    #[serde(skip_serializing)]
+    pub sum_callback: Callback<usize>,
+}
+
+impl PartialEq for TableLine {
+    fn eq(&self, other: &Self) -> bool {
+        self.original_index == other.original_index
+            && self.id == other.id
+            && self.name == other.name
+            && self.value == other.value
+            && self.checked == other.checked
+    }
+}
+
+impl PartialOrd for TableLine {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.name.cmp(&other.name))
+    }
+}
+
+impl TableLine {
+    fn matches_query(&self, query: &str) -> bool {
+        let query_tokens: HashSet<String> = query.split_whitespace().map(|s| s.to_lowercase()).collect();
+        let name_tokens: HashSet<String> = self.name.split_whitespace().map(|s| s.to_lowercase()).collect();
+
+        // Check if all query tokens are present in the name tokens
+        query_tokens.is_subset(&name_tokens)
+    }
+}
+
+impl TableData for TableLine {
+    fn get_field_as_html(&self, field_name: &str) -> Result<Html, Error> {
+        match field_name {
+            "select" => Ok(html! {
+                <input
+                    type="checkbox"
+                    style="width: 30px; height: 30px;"
+                    checked={self.checked}
+                    onclick={
+                        let value = self.original_index;
+                        let handle_sum = self.sum_callback.clone();
+                        move |_| { handle_sum.emit(value); }
+                    }
+                />
+            }),
+            "id" => Ok(html! { self.id }),
+            "name" => Ok(html! { self.name.clone() }),
+            "value" => Ok(html! { self.value }),
+            _ => Ok(html! {}),
+        }
+    }
+
+    fn get_field_as_value(&self, field_name: &str) -> Result<Value, Error> {
+        match field_name {
+            "id" => Ok(Value::I32(self.id)),
+            "name" => Ok(Value::String(self.name.clone())),
+            "value" => Ok(Value::I64(self.value)),
+            "select" => Ok(Value::Bool(self.checked)),
+            _ => Ok(Value::Unit),
+        }
+    }
+
+    fn matches_search(&self, needle: Option<String>) -> bool {
+        match needle {
+            Some(needle) => self.name.to_lowercase().contains(&needle.to_lowercase()),
+            None => true,
+        }
+    }
+}
+
+fn filter_and_sort_data(data: Vec<TableLine>, query: &str) -> Vec<TableLine> {
+    let mut filtered_data: Vec<TableLine> = data
+        .into_iter()
+        .filter(|line| query.is_empty() || line.matches_query(query))
+        .collect();
+
+    // Optionally, sort the filtered data by relevance
+    filtered_data.sort_by(|a, b| b.name.cmp(&a.name)); // Example sorting by name
+
+    filtered_data
+}
+
 #[function_component(Home)]
 pub fn home() -> Html {
-    // Mock data holder
     let data = use_reducer(crate::types::mock_data::Data::default);
     let mock_data = (*data).clone();
 
-    // Search term
     let search_term = use_state(|| None::<String>);
     let search = (*search_term).as_ref().cloned();
 
-    // Pagination state
     let page = use_state(|| 0usize);
     let current_page = (*page).clone();
 
-    // Selected indexes for summing
     let selected_indexes = use_set(HashSet::<usize>::new());
     let sum = selected_indexes.current().len();
 
-    // Column definition
     let columns = vec![
         ColumnBuilder::new("select").orderable(true).short_name("Select").data_property("select").header_class("user-select-none").build(),
         ColumnBuilder::new("id").orderable(true).short_name("ID").data_property("id").header_class("user-select-none").build(),
@@ -254,7 +315,6 @@ pub fn home() -> Html {
         ColumnBuilder::new("value").orderable(true).short_name("Value").data_property("value").header_class("user-select-none").build(),
     ];
 
-    // Table options
     let options = Options {
         unordered_class: Some("fa-sort".to_string()),
         ascending_class: Some("fa-sort-up".to_string()),
@@ -262,7 +322,6 @@ pub fn home() -> Html {
         orderable_classes: vec!["mx-1".to_string(), "fa-solid".to_string()],
     };
 
-    // Handle sum
     let callback_sum = {
         let selected_indexes = selected_indexes.clone();
         Callback::from(move |index: usize| {
@@ -272,49 +331,44 @@ pub fn home() -> Html {
         })
     };
 
-    // Filter the full dataset based on the search term
-    let filtered_data: Vec<TableLine> = mock_data.data
-        .iter()
-        .enumerate()
-        .filter(|(_, (_, name, _))| {
-            match search {
-                Some(ref term) => name.to_lowercase().contains(&term.to_lowercase()),
-                None => true, // If no search term, include all data
-            }
-        })
-        .map(|(index, (id, name, value))| TableLine {
+    let filtered_data: Vec<TableLine> = if let Some(ref term) = search {
+        filter_and_sort_data(mock_data.data.iter().enumerate().map(|(index, (id, name, value))| TableLine {
             original_index: index,
             id: *id,
             name: name.clone(),
             value: *value,
             checked: selected_indexes.current().contains(&index),
             sum_callback: callback_sum.clone(),
-        })
-        .collect();
-
-    // Pagination logic
-    let limit = 10; // Number of items per page
-
-    // Reset current_page to 0 if filtered_data is empty
-    let current_page = if filtered_data.is_empty() {
-        0 // Reset to the first page if no data is found
+        }).collect(), term)
     } else {
-        current_page.min((filtered_data.len() - 1) / limit) // Ensure current_page is within bounds
+        mock_data.data.iter().enumerate().map(|(index, (id, name, value))| TableLine {
+            original_index: index,
+            id: *id,
+            name: name.clone(),
+            value: *value,
+            checked: selected_indexes.current().contains(&index),
+            sum_callback: callback_sum.clone(),
+        }).collect()
+    };
+
+    let limit = 10;
+    let current_page = if filtered_data.is_empty() {
+        0
+    } else {
+        current_page.min((filtered_data.len() - 1) / limit)
     };
 
     let start_index = current_page * limit;
-    let end_index = (start_index + limit).min(filtered_data.len()); // Ensure end_index does not exceed filtered_data.len()
+    let end_index = (start_index + limit).min(filtered_data.len());
 
     let paginated_data = if filtered_data.is_empty() {
-        Vec::new() // Return an empty vector if no data is found
+        Vec::new()
     } else {
-        filtered_data[start_index..end_index].to_vec() // Slice the data
+        filtered_data[start_index..end_index].to_vec()
     };
 
-    // Ensure total is at least 1 for the Pagination component
     let total = filtered_data.len().max(1);
 
-    // Handle search input
     let oninput_search = {
         let search_term = search_term.clone();
         Callback::from(move |e: InputEvent| {
@@ -327,7 +381,6 @@ pub fn home() -> Html {
         })
     };
 
-    // Pagination options
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
         .show_first_last(true)
@@ -337,7 +390,6 @@ pub fn home() -> Html {
         .active_item_classes(vec!(String::from("active")))
         .disabled_item_classes(vec!(String::from("disabled")));
 
-    // Handle changing page
     let handle_page = {
         let page = page.clone();
         Callback::from(move |new_page: usize| {
@@ -365,7 +417,7 @@ pub fn home() -> Html {
                 orderable={true}
             />
             <Pagination 
-                total={total} // Ensure total is at least 1
+                total={total}
                 limit={limit} 
                 max_pages={6} 
                 options={pagination_options} 
@@ -375,64 +427,4 @@ pub fn home() -> Html {
             <App selected_indexes={(*selected_indexes.current()).clone()} />
         </>
     )
-}
-
-
-
-#[derive(Clone, Serialize, Debug, Default)]
-struct TableLine {
-    pub original_index: usize,
-    pub id: i32,
-    pub name: String,
-    pub value: i64,
-    pub checked: bool,
-    #[serde(skip_serializing)]
-    pub sum_callback: Callback<usize>,
-}
-
-impl PartialEq<Self> for TableLine {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.value == other.value && self.checked == other.checked
-    }
-}
-
-impl PartialOrd for TableLine {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.name.partial_cmp(&other.name)
-    }
-}
-
-impl TableData for TableLine {
-    fn get_field_as_html(&self, field_name: &str) -> yew_custom_components::table::error::Result<Html> {
-        match field_name {
-            "select" => Ok(html!( <input type="checkbox" style="width: 30px; height: 30px;" checked={self.checked}
-                onclick={
-                let value = self.original_index;
-                let handle_sum = self.sum_callback.clone();
-                move |_| { handle_sum.emit(value); }
-                } /> )
-            ),
-            "id" => Ok(html! { self.id }),
-            "name" => Ok(html! { self.name.clone() }),
-            "value" => Ok(html! { self.value }),
-            _ => Ok(html! {}),
-        }
-    }
-
-    fn get_field_as_value(&self, field_name: &str) -> yew_custom_components::table::error::Result<serde_value::Value> {
-        match field_name {
-            "id" => Ok(serde_value::Value::I32(self.id)),
-            "name" => Ok(serde_value::Value::String(self.name.clone())),
-            "value" => Ok(serde_value::Value::I64(self.value)),
-            "select" => Ok(serde_value::Value::Bool(self.checked)),
-            _ => Ok(serde_value::to_value(()).unwrap()),
-        }
-    }
-
-    fn matches_search(&self, needle: Option<String>) -> bool {
-        match needle {
-            Some(needle) => self.name.to_lowercase().contains(&needle.to_lowercase()),
-            None => true,
-        }
-    }
 }
