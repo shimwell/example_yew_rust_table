@@ -405,7 +405,7 @@ impl PartialOrd for TableLine {
 impl TableData for TableLine {
     fn get_field_as_html(&self, field_name: &str) -> yew_custom_components::table::error::Result<Html> {
         match field_name {
-            "select" => Ok(html!( <input type="checkbox" checked={self.checked}
+            "select" => Ok(html!( <input type="checkbox" style="width: 30px; height: 30px;" checked={self.checked}
                 onclick={
                 let value = self.original_index;
                 let handle_sum = self.sum_callback.clone();
