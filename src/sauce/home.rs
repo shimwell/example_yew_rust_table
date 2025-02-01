@@ -228,7 +228,6 @@ fn convert_string(input: &str) -> String {
     result
 }
 
-
 #[function_component(Home)]
 pub fn home() -> Html {
     // Mock data holder
@@ -239,14 +238,13 @@ pub fn home() -> Html {
     let search_term = use_state(|| None::<String>);
     let search = (*search_term).as_ref().cloned();
 
-    let page=use_state(||0usize);
-    let current_page=(*page).clone();
+    // Pagination state
+    let page = use_state(|| 0usize);
+    let current_page = (*page).clone();
 
-    // Sum data
+    // Selected indexes for summing
     let selected_indexes = use_set(HashSet::<usize>::new());
-
     let sum = selected_indexes.current().len();
-
 
     // Column definition
     let columns = vec![
@@ -256,7 +254,6 @@ pub fn home() -> Html {
         ColumnBuilder::new("value").orderable(true).short_name("Value").data_property("value").header_class("user-select-none").build(),
     ];
 
-
     // Table options
     let options = Options {
         unordered_class: Some("fa-sort".to_string()),
@@ -265,8 +262,6 @@ pub fn home() -> Html {
         orderable_classes: vec!["mx-1".to_string(), "fa-solid".to_string()],
     };
 
-
-    
     // Handle sum
     let callback_sum = {
         let selected_indexes = selected_indexes.clone();
@@ -277,13 +272,17 @@ pub fn home() -> Html {
         })
     };
 
-    
-    
-
-    // Fill the table data structure with actual data
-    let mut table_data = Vec::new();
-    for (index, (id, name, value)) in mock_data.data.iter().enumerate() {
-        table_data.push(TableLine {
+    // Filter the full dataset based on the search term
+    let filtered_data: Vec<TableLine> = mock_data.data
+        .iter()
+        .enumerate()
+        .filter(|(_, (_, name, _))| {
+            match search {
+                Some(ref term) => name.to_lowercase().contains(&term.to_lowercase()),
+                None => true, // If no search term, include all data
+            }
+        })
+        .map(|(index, (id, name, value))| TableLine {
             original_index: index,
             id: *id,
             name: name.clone(),
@@ -291,10 +290,33 @@ pub fn home() -> Html {
             checked: selected_indexes.current().contains(&index),
             sum_callback: callback_sum.clone(),
         })
-    }
+        .collect();
+
+    // Pagination logic
+    let limit = 10; // Number of items per page
+
+    // Reset current_page to 0 if filtered_data is empty
+    let current_page = if filtered_data.is_empty() {
+        0 // Reset to the first page if no data is found
+    } else {
+        current_page.min((filtered_data.len() - 1) / limit) // Ensure current_page is within bounds
+    };
+
+    let start_index = current_page * limit;
+    let end_index = (start_index + limit).min(filtered_data.len()); // Ensure end_index does not exceed filtered_data.len()
+
+    let paginated_data = if filtered_data.is_empty() {
+        Vec::new() // Return an empty vector if no data is found
+    } else {
+        filtered_data[start_index..end_index].to_vec() // Slice the data
+    };
+
+    // Ensure total is at least 1 for the Pagination component
+    let total = filtered_data.len().max(1);
 
     // Handle search input
     let oninput_search = {
+        let search_term = search_term.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             if input.value().is_empty() {
@@ -305,6 +327,7 @@ pub fn home() -> Html {
         })
     };
 
+    // Pagination options
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
         .show_first_last(true)
@@ -317,8 +340,8 @@ pub fn home() -> Html {
     // Handle changing page
     let handle_page = {
         let page = page.clone();
-        Callback::from(move |id: usize| {
-            page.set(id);
+        Callback::from(move |new_page: usize| {
+            page.set(new_page);
         })
     };
 
@@ -331,8 +354,23 @@ pub fn home() -> Html {
                 </span>
                 <input class="form-control" type="text" id="search" placeholder="Search" oninput={oninput_search} />
             </div>
-            <Table<TableLine> options={options.clone()} limit={Some(10)} page={current_page} search={search.clone()} classes={classes!("table", "table-hover")} columns={columns.clone()} data={table_data.clone()} orderable={true}/>
-            <Pagination total={table_data.len()} limit={10} max_pages={6} options={pagination_options} on_page={Some(handle_page)}/>
+            <Table<TableLine> 
+                options={options.clone()} 
+                limit={Some(limit)} 
+                page={current_page} 
+                search={search.clone()} 
+                classes={classes!("table", "table-hover")} 
+                columns={columns.clone()} 
+                data={paginated_data} 
+                orderable={true}
+            />
+            <Pagination 
+                total={total} // Ensure total is at least 1
+                limit={limit} 
+                max_pages={6} 
+                options={pagination_options} 
+                on_page={Some(handle_page)}
+            />
             <h5>{"Number selected"} <span class="badge text-bg-secondary">{sum}</span></h5>
             <App selected_indexes={(*selected_indexes.current()).clone()} />
         </>
