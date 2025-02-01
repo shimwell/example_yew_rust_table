@@ -12,15 +12,12 @@ use plotly::layout::{AxisType};
 use yew::prelude::*;
 use serde::Deserialize;
 use crate::types::mock_data::Data;
-// use cached::proc_macro::cached;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ReactionData {
     #[serde(rename = "energy")]
     energy_values: Vec<f64>,
     #[serde(rename = "cross section")]
-    // #[serde(rename = "cross_section")]
     cross_section_values: Vec<f64>,
 }
 
@@ -35,8 +32,6 @@ pub struct XsCache {
 pub struct PlotProps {
     pub selected_indexes: HashSet<usize>,
 }
-
-
 
 #[function_component(App)]
 pub fn plot_component(props: &PlotProps) -> Html {
@@ -95,7 +90,6 @@ pub fn plot_component(props: &PlotProps) -> Html {
         })
     };
 
-
     let onclick_toggle_x_log = {
         let is_x_log = is_x_log.clone();
         Callback::from(move |_| {
@@ -122,11 +116,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
     }
 }
 
-
 async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
-    // as nothing is selected initially this returns an empy strut
-    // I need this calling and updating the cache on every checkbox interaction
-
     let mut cache_energy_values = Vec::new();
     let mut cache_cross_section_values = Vec::new();
     let mut cache_checkbox_selected = Vec::new();
@@ -136,32 +126,23 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
         cache_energy_values.push(energy);
         cache_cross_section_values.push(cross_section);
         cache_checkbox_selected.push(true);
-
-        // Print the selected ID to the console
-        
         console::log_1(&selected_id.clone().into());
     }
 
-    // not sure why but this appears to be returning the same sort of data as the below hard coded version but it doesn't plot
     XsCache {
         energy_values: cache_energy_values,
         cross_section_values: cache_cross_section_values,
         checkbox_selected: cache_checkbox_selected,
     }
-
 }
 
-// #[cached(result = true, key = "()", convert = r#"{}"#)]
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
-
     let data = crate::types::mock_data::Data::default();
-
     let Some(name) = get_name_by_id(&data, id) else { todo!() };
     let output = convert_string(name);
     console::log_1(&serde_wasm_bindgen::to_value(&"output").unwrap());
     console::log_1(&serde_wasm_bindgen::to_value(&output).unwrap());
 
-    // let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/main/data_{}.json", id);
     let url = format!("https://raw.githubusercontent.com/openmc-data-storage/ENDF-B-VIII.0-NNDC-json/refs/heads/main/json_files/{output}.json");
 
     console::log_1(&serde_wasm_bindgen::to_value(&url).unwrap());
@@ -186,20 +167,11 @@ fn get_name_by_id(data: &Data, id: i32) -> Option<&String> {
     name
 }
 
-
 fn convert_string(input: &str) -> String {
     let mut result = input.to_string();
-
-    // TODO the need different units
-    // Remove "damage-energy" if present
     result = result.replace("damage-energy", "");
-    // Remove "damage-energy" if present
     result = result.replace("heating", "");
-
-    // Extract the first token
     let first_token = result.split_whitespace().next().unwrap_or("");
-
-    // Separate letters and numbers
     let mut letters = String::new();
     let mut numbers = String::new();
     for c in first_token.chars() {
@@ -209,13 +181,8 @@ fn convert_string(input: &str) -> String {
             numbers.push(c);
         }
     }
-
     let formatted_first_token = format!("{}_{}", letters, numbers);
-
-    // Replace the first token in the result
     result = result.replacen(first_token, &formatted_first_token, 1);
-
-
     while let Some(start) = result.find('(') {
         if let Some(end) = result[start..].find(')') {
             result.replace_range(start..=end + start, "");
@@ -230,23 +197,20 @@ fn convert_string(input: &str) -> String {
 
 #[function_component(Home)]
 pub fn home() -> Html {
-    // Mock data holder
     let data = use_reducer(crate::types::mock_data::Data::default);
     let mock_data = (*data).clone();
 
-    // Search term
-    let search_term = use_state(|| None::<String>);
-    let search = (*search_term).as_ref().cloned();
+    let name_search_term = use_state(|| None::<String>);
+    let value_search_term = use_state(|| None::<String>);
+    let name_search = (*name_search_term).as_ref().cloned();
+    let value_search = (*value_search_term).as_ref().cloned();
 
-    // Pagination state
     let page = use_state(|| 0usize);
     let current_page = (*page).clone();
 
-    // Selected indexes for summing
     let selected_indexes = use_set(HashSet::<usize>::new());
     let sum = selected_indexes.current().len();
 
-    // Column definition
     let columns = vec![
         ColumnBuilder::new("select").orderable(true).short_name("Select").data_property("select").header_class("user-select-none").build(),
         ColumnBuilder::new("id").orderable(true).short_name("ID").data_property("id").header_class("user-select-none").build(),
@@ -254,7 +218,6 @@ pub fn home() -> Html {
         ColumnBuilder::new("value").orderable(true).short_name("Value").data_property("value").header_class("user-select-none").build(),
     ];
 
-    // Table options
     let options = Options {
         unordered_class: Some("fa-sort".to_string()),
         ascending_class: Some("fa-sort-up".to_string()),
@@ -262,7 +225,6 @@ pub fn home() -> Html {
         orderable_classes: vec!["mx-1".to_string(), "fa-solid".to_string()],
     };
 
-    // Handle sum
     let callback_sum = {
         let selected_indexes = selected_indexes.clone();
         Callback::from(move |index: usize| {
@@ -272,15 +234,20 @@ pub fn home() -> Html {
         })
     };
 
-    // Filter the full dataset based on the search term
     let filtered_data: Vec<TableLine> = mock_data.data
         .iter()
         .enumerate()
-        .filter(|(_, (_, name, _))| {
-            match search {
+        .filter(|(_, (_, name, value))| {
+            let name_match = match name_search {
                 Some(ref term) => name.to_lowercase().contains(&term.to_lowercase()),
-                None => true, // If no search term, include all data
-            }
+                None => true,
+            };
+            let value_match = match value_search {
+                Some(ref term) => value.to_string().contains(&*term),
+                // Some(ref term) => value.to_string().contains(&term),
+                None => true,
+            };
+            name_match && value_match
         })
         .map(|(index, (id, name, value))| TableLine {
             original_index: index,
@@ -292,42 +259,48 @@ pub fn home() -> Html {
         })
         .collect();
 
-    // Pagination logic
-    let limit = 10; // Number of items per page
-
-    // Reset current_page to 0 if filtered_data is empty
+    let limit = 10;
     let current_page = if filtered_data.is_empty() {
-        0 // Reset to the first page if no data is found
+        0
     } else {
-        current_page.min((filtered_data.len() - 1) / limit) // Ensure current_page is within bounds
+        current_page.min((filtered_data.len() - 1) / limit)
     };
 
     let start_index = current_page * limit;
-    let end_index = (start_index + limit).min(filtered_data.len()); // Ensure end_index does not exceed filtered_data.len()
+    let end_index = (start_index + limit).min(filtered_data.len());
 
     let paginated_data = if filtered_data.is_empty() {
-        Vec::new() // Return an empty vector if no data is found
+        Vec::new()
     } else {
-        filtered_data[start_index..end_index].to_vec() // Slice the data
+        filtered_data[start_index..end_index].to_vec()
     };
 
-    // Ensure total is at least 1 for the Pagination component
     let total = filtered_data.len().max(1);
 
-    // Handle search input
-    let oninput_search = {
-        let search_term = search_term.clone();
+    let oninput_name_search = {
+        let name_search_term = name_search_term.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             if input.value().is_empty() {
-                search_term.set(None);
+                name_search_term.set(None);
             } else {
-                search_term.set(Some(input.value()));
+                name_search_term.set(Some(input.value()));
             }
         })
     };
 
-    // Pagination options
+    let oninput_value_search = {
+        let value_search_term = value_search_term.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            if input.value().is_empty() {
+                value_search_term.set(None);
+            } else {
+                value_search_term.set(Some(input.value()));
+            }
+        })
+    };
+
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
         .show_first_last(true)
@@ -337,7 +310,6 @@ pub fn home() -> Html {
         .active_item_classes(vec!(String::from("active")))
         .disabled_item_classes(vec!(String::from("disabled")));
 
-    // Handle changing page
     let handle_page = {
         let page = page.clone();
         Callback::from(move |new_page: usize| {
@@ -352,20 +324,38 @@ pub fn home() -> Html {
                 <span class="input-group-text">
                     <i class="fas fa-search"></i>
                 </span>
-                <input class="form-control" type="text" id="search" placeholder="Search" oninput={oninput_search} />
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="name-search" 
+                    placeholder="Search by Name" 
+                    oninput={oninput_name_search} 
+                />
+            </div>
+            <div class="flex-grow-1 p-2 input-group mb-2">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="value-search" 
+                    placeholder="Search by Value" 
+                    oninput={oninput_value_search} 
+                />
             </div>
             <Table<TableLine> 
                 options={options.clone()} 
                 limit={Some(limit)} 
                 page={current_page} 
-                search={search.clone()} 
+                search={name_search.clone()} 
                 classes={classes!("table", "table-hover")} 
                 columns={columns.clone()} 
                 data={paginated_data} 
                 orderable={true}
             />
             <Pagination 
-                total={total} // Ensure total is at least 1
+                total={total}
                 limit={limit} 
                 max_pages={6} 
                 options={pagination_options} 
@@ -376,8 +366,6 @@ pub fn home() -> Html {
         </>
     )
 }
-
-
 
 #[derive(Clone, Serialize, Debug, Default)]
 struct TableLine {
