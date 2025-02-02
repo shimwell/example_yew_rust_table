@@ -2,12 +2,12 @@
     {
         "id": 0,
         "name": "Dy157 ENDFB-8.0 damage-energy MT444 294K",
-        "value": 1
+        "value": 10
     },
     {
         "id": 1,
         "name": "I133 ENDFB-8.0 (n,a6) MT806 294K",
-        "value": 1
+        "value": 3
     },
     {
         "id": 2,
@@ -55142,7 +55142,7 @@
     {
         "id": 11028,
         "name": "Li6 ENDFB-8.0 (n,Xt) MT205 294K",
-        "value": 1
+        "value": 15
     },
     {
         "id": 11029,
