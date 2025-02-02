@@ -7,6 +7,8 @@ use yew_hooks::use_async;
 use yew_custom_components::pagination::Pagination;
 use yew_custom_components::table::{Options, Table};
 use yew_custom_components::table::types::{ColumnBuilder, TableData};
+use crate::types::mock_data::Entry;
+
 use plotly::{Plot, Scatter};
 use plotly::layout::{AxisType};
 use yew::prelude::*;
@@ -138,8 +140,8 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
 
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
     let data = crate::types::mock_data::Data::default();
-    let Some(name) = get_name_by_id(&data, id) else { todo!() };
-    let output = convert_string(name);
+    let entry = data.data.iter().find(|entry| entry.id == id).expect("Entry not found");
+    let output = convert_string(entry);
     console::log_1(&serde_wasm_bindgen::to_value(&"output").unwrap());
     console::log_1(&serde_wasm_bindgen::to_value(&output).unwrap());
 
@@ -155,55 +157,29 @@ async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Erro
     Ok((downloaded_reaction_data.energy_values, downloaded_reaction_data.cross_section_values))
 }
 
-fn get_name_by_id(data: &Data, id: i32) -> Option<&String> {
-    console::log_1(&serde_wasm_bindgen::to_value("get_name_by_id").unwrap());
-    console::log_1(&serde_wasm_bindgen::to_value(&id).unwrap());
-    let name = data.data.iter().find(|&&(i, _, _)| i == id).map(|&(_, ref name, _)| name);
-    if let Some(name) = name {
-        console::log_1(&serde_wasm_bindgen::to_value(&format!("Found name: {}", name)).unwrap());
-    } else {
-        console::log_1(&serde_wasm_bindgen::to_value("Name not found").unwrap());
-    }
-    name
+
+fn convert_string(entry: &Entry) -> String {
+    let element = entry.element.clone();
+    let nucleons = entry.nucleons.clone();
+    let library = entry.library.clone();
+    // let reaction = entry.reaction.clone();
+    let particle:char = 'n';  // entry.particle.clone();
+    let mt = entry.mt.clone();
+    let temperature = entry.temperature.clone();
+    let output = format!("{}_{}_{}_{}_{}_{}", element, nucleons, library, particle, mt, temperature);
+    output
 }
 
-fn convert_string(input: &str) -> String {
-    let mut result = input.to_string();
-    result = result.replace("damage-energy", "");
-    result = result.replace("heating", "");
-    let first_token = result.split_whitespace().next().unwrap_or("");
-    let mut letters = String::new();
-    let mut numbers = String::new();
-    for c in first_token.chars() {
-        if c.is_alphabetic() {
-            letters.push(c);
-        } else if c.is_numeric() {
-            numbers.push(c);
-        }
-    }
-    let formatted_first_token = format!("{}_{}", letters, numbers);
-    result = result.replacen(first_token, &formatted_first_token, 1);
-    while let Some(start) = result.find('(') {
-        if let Some(end) = result[start..].find(')') {
-            result.replace_range(start..=end + start, "");
-        } else {
-            break;
-        }
-    }
-    result = result.replace(" MT", "n_");
-    result = result.replace(" ", "_");
-    result
-}
 
 #[function_component(Home)]
 pub fn home() -> Html {
     let data = use_reducer(crate::types::mock_data::Data::default);
     let mock_data = (*data).clone();
 
-    let name_search_term = use_state(|| None::<String>);
-    let value_search_term = use_state(|| None::<String>);
-    let name_search = (*name_search_term).as_ref().cloned();
-    let value_search = (*value_search_term).as_ref().cloned();
+    let element_search_term = use_state(|| None::<String>);
+    let nucleons_search_term = use_state(|| None::<String>);
+    let element_search = (*element_search_term).as_ref().cloned();
+    let nucleons_search = (*nucleons_search_term).as_ref().cloned();
 
     let page = use_state(|| 0usize);
     let current_page = (*page).clone();
@@ -214,8 +190,12 @@ pub fn home() -> Html {
     let columns = vec![
         ColumnBuilder::new("select").orderable(true).short_name("Select").data_property("select").header_class("user-select-none").build(),
         ColumnBuilder::new("id").orderable(true).short_name("ID").data_property("id").header_class("user-select-none").build(),
-        ColumnBuilder::new("name").orderable(true).short_name("Name").data_property("name").header_class("user-select-none").build(),
-        ColumnBuilder::new("value").orderable(true).short_name("Value").data_property("value").header_class("user-select-none").build(),
+        ColumnBuilder::new("element").orderable(true).short_name("Element").data_property("element").header_class("user-select-none").build(),
+        ColumnBuilder::new("nucleons").orderable(true).short_name("Nucleons").data_property("nucleons").header_class("user-select-none").build(),
+        ColumnBuilder::new("reaction").orderable(true).short_name("Reaction").data_property("reaction").header_class("user-select-none").build(),
+        // ColumnBuilder::new("library").orderable(true).short_name("Library").data_property("library").header_class("user-select-none").build(),
+        ColumnBuilder::new("mt").orderable(true).short_name("MT").data_property("mt").header_class("user-select-none").build(),
+        // ColumnBuilder::new("temperature").orderable(true).short_name("Temperature").data_property("temperature").header_class("user-select-none").build(),
     ];
 
     let options = Options {
@@ -237,23 +217,29 @@ pub fn home() -> Html {
     let filtered_data: Vec<TableLine> = mock_data.data
         .iter()
         .enumerate()
-        .filter(|(_, (_, name, value))| {
-            let name_match = match name_search {
-                Some(ref term) => name.to_lowercase().contains(&term.to_lowercase()),
+        .filter(|(_, entry)| {
+            let element = &entry.element;
+            let nucleons = &entry.nucleons;
+            let element_match = match element_search {
+                Some(ref term) => element.to_lowercase().contains(&term.to_lowercase()),
                 None => true,
             };
-            let value_match = match value_search {
-                Some(ref term) => value.to_string().contains(&*term),
-                // Some(ref term) => value.to_string().contains(&term),
+            let nucleons_match = match nucleons_search {
+                Some(ref term) => nucleons.to_string().contains(&*term),
+                // Some(ref term) => nucleons.to_string().contains(&term),
                 None => true,
             };
-            name_match && value_match
+            element_match && nucleons_match
         })
-        .map(|(index, (id, name, value))| TableLine {
+        .map(|(index, entry)| TableLine {
             original_index: index,
-            id: *id,
-            name: name.clone(),
-            value: *value,
+            id: entry.id,
+            element: entry.element.clone(),
+            nucleons: entry.nucleons.clone(),
+            library: entry.library.clone(),
+            reaction: entry.reaction.clone(),
+            mt: entry.mt.clone(),
+            temperature: entry.temperature.clone(),
             checked: selected_indexes.current().contains(&index),
             sum_callback: callback_sum.clone(),
         })
@@ -277,26 +263,26 @@ pub fn home() -> Html {
 
     let total = filtered_data.len().max(1);
 
-    let oninput_name_search = {
-        let name_search_term = name_search_term.clone();
+    let oninput_element_search = {
+        let element_search_term = element_search_term.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             if input.value().is_empty() {
-                name_search_term.set(None);
+                element_search_term.set(None);
             } else {
-                name_search_term.set(Some(input.value()));
+                element_search_term.set(Some(input.value()));
             }
         })
     };
 
     let oninput_value_search = {
-        let value_search_term = value_search_term.clone();
+        let nucleons_search_term = nucleons_search_term.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             if input.value().is_empty() {
-                value_search_term.set(None);
+                nucleons_search_term.set(None);
             } else {
-                value_search_term.set(Some(input.value()));
+                nucleons_search_term.set(Some(input.value()));
             }
         })
     };
@@ -327,9 +313,9 @@ pub fn home() -> Html {
                 <input 
                     class="form-control" 
                     type="text" 
-                    id="name-search" 
-                    placeholder="Search by Name" 
-                    oninput={oninput_name_search} 
+                    id="element-search" 
+                    placeholder="Search by element" 
+                    oninput={oninput_element_search} 
                 />
             </div>
             <div class="flex-grow-1 p-2 input-group mb-2">
@@ -348,7 +334,7 @@ pub fn home() -> Html {
                 options={options.clone()} 
                 limit={Some(limit)} 
                 page={current_page} 
-                search={name_search.clone()} 
+                search={element_search.clone()} 
                 classes={classes!("table", "table-hover")} 
                 columns={columns.clone()} 
                 data={paginated_data} 
@@ -370,23 +356,27 @@ pub fn home() -> Html {
 #[derive(Clone, Serialize, Debug, Default)]
 struct TableLine {
     pub original_index: usize,
-    pub id: i32,
-    pub name: String,
-    pub value: i64,
     pub checked: bool,
+    pub id: i32,
+    pub element: String,
+    pub nucleons: i32,
+    pub library: String,
+    pub reaction: String,
+    pub mt: i32,
+    pub temperature: String,
     #[serde(skip_serializing)]
     pub sum_callback: Callback<usize>,
 }
 
 impl PartialEq<Self> for TableLine {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.value == other.value && self.checked == other.checked
+        self.element == other.element && self.nucleons == other.nucleons && self.checked == other.checked
     }
 }
 
 impl PartialOrd for TableLine {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.name.partial_cmp(&other.name)
+        self.element.partial_cmp(&other.element)
     }
 }
 
@@ -401,8 +391,11 @@ impl TableData for TableLine {
                 } /> )
             ),
             "id" => Ok(html! { self.id }),
-            "name" => Ok(html! { self.name.clone() }),
-            "value" => Ok(html! { self.value }),
+            "element" => Ok(html! { self.element.clone() }),
+            "nucleons" => Ok(html! { self.nucleons }),
+            "library" => Ok(html! { self.library.clone() }),
+            "reaction" => Ok(html! { self.reaction.clone() }),
+            "mt" => Ok(html! { self.mt }),
             _ => Ok(html! {}),
         }
     }
@@ -410,8 +403,11 @@ impl TableData for TableLine {
     fn get_field_as_value(&self, field_name: &str) -> yew_custom_components::table::error::Result<serde_value::Value> {
         match field_name {
             "id" => Ok(serde_value::Value::I32(self.id)),
-            "name" => Ok(serde_value::Value::String(self.name.clone())),
-            "value" => Ok(serde_value::Value::I64(self.value)),
+            "element" => Ok(serde_value::Value::String(self.element.clone())),
+            "nucleons" => Ok(serde_value::Value::I32(self.nucleons)),
+            "library" => Ok(serde_value::Value::String(self.library.clone())),
+            "reaction" => Ok(serde_value::Value::String(self.reaction.clone())),
+            "mt" => Ok(serde_value::Value::I32(self.mt)),
             "select" => Ok(serde_value::Value::Bool(self.checked)),
             _ => Ok(serde_value::to_value(()).unwrap()),
         }
@@ -419,7 +415,7 @@ impl TableData for TableLine {
 
     fn matches_search(&self, needle: Option<String>) -> bool {
         match needle {
-            Some(needle) => self.name.to_lowercase().contains(&needle.to_lowercase()),
+            Some(needle) => self.element.to_lowercase().contains(&needle.to_lowercase()),
             None => true,
         }
     }
