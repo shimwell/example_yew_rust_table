@@ -13,7 +13,6 @@ use plotly::{Plot, Scatter};
 use plotly::layout::{AxisType};
 use yew::prelude::*;
 use serde::Deserialize;
-use crate::types::mock_data::Data;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ReactionData {
@@ -275,7 +274,7 @@ pub fn home() -> Html {
         })
     };
 
-    let oninput_value_search = {
+    let oninput_nucleon_search = {
         let nucleons_search_term = nucleons_search_term.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
@@ -325,9 +324,9 @@ pub fn home() -> Html {
                 <input 
                     class="form-control" 
                     type="text" 
-                    id="value-search" 
-                    placeholder="Search by Value" 
-                    oninput={oninput_value_search} 
+                    id="nucleon-search" 
+                    placeholder="Search by MT" 
+                    oninput={oninput_nucleon_search} 
                 />
             </div>
             <Table<TableLine> 
