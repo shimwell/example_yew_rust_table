@@ -161,7 +161,7 @@ fn convert_string(entry: &Entry) -> String {
     let element = entry.element.clone();
     let nucleons = entry.nucleons.clone();
     let library = entry.library.clone();
-    // let reaction = entry.reaction.clone();
+    // let reaction = entry.reaction.clone();  // not needed as we have MT number
     let particle:char = 'n';  // entry.particle.clone();
     let mt = entry.mt.clone();
     let temperature = entry.temperature.clone();
@@ -177,8 +177,10 @@ pub fn home() -> Html {
 
     let element_search_term = use_state(|| None::<String>);
     let nucleons_search_term = use_state(|| None::<String>);
+    let reaction_search_term = use_state(|| None::<String>);
     let element_search = (*element_search_term).as_ref().cloned();
     let nucleons_search = (*nucleons_search_term).as_ref().cloned();
+    let reaction_search = (*reaction_search_term).as_ref().cloned();
 
     let page = use_state(|| 0usize);
     let current_page = (*page).clone();
@@ -219,16 +221,22 @@ pub fn home() -> Html {
         .filter(|(_, entry)| {
             let element = &entry.element;
             let nucleons = &entry.nucleons;
+            let reaction = &entry.reaction;
+
             let element_match = match element_search {
                 Some(ref term) => element.to_lowercase().contains(&term.to_lowercase()),
                 None => true,
             };
             let nucleons_match = match nucleons_search {
                 Some(ref term) => nucleons.to_string().contains(&*term),
-                // Some(ref term) => nucleons.to_string().contains(&term),
                 None => true,
             };
-            element_match && nucleons_match
+            let reaction_match = match reaction_search {
+                Some(ref term) => reaction.to_lowercase().contains(&term.to_lowercase()),
+                None => true,
+            };
+
+            element_match && nucleons_match && reaction_match
         })
         .map(|(index, entry)| TableLine {
             original_index: index,
@@ -286,6 +294,18 @@ pub fn home() -> Html {
         })
     };
 
+    let oninput_reaction_search = {
+        let reaction_search_term = reaction_search_term.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            if input.value().is_empty() {
+                reaction_search_term.set(None);
+            } else {
+                reaction_search_term.set(Some(input.value()));
+            }
+        })
+    };
+
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
         .show_first_last(true)
@@ -325,8 +345,20 @@ pub fn home() -> Html {
                     class="form-control" 
                     type="text" 
                     id="nucleon-search" 
-                    placeholder="Search by MT" 
+                    placeholder="Search by nucleons" 
                     oninput={oninput_nucleon_search} 
+                />
+            </div>
+            <div class="flex-grow-1 p-2 input-group mb-2">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="reaction-search" 
+                    placeholder="Search by reaction" 
+                    oninput={oninput_reaction_search} 
                 />
             </div>
             <Table<TableLine> 
