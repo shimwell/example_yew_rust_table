@@ -106,6 +106,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
             >
                 {if *is_y_log { "Switch Y to Linear Scale" } else { "Switch Y to Log Scale" }}
             </button>
+            <br/>
             <button 
                 onclick={onclick_toggle_x_log}
                 class="btn btn-primary mb-2"
@@ -178,9 +179,11 @@ pub fn home() -> Html {
     let element_search_term = use_state(|| None::<String>);
     let nucleons_search_term = use_state(|| None::<String>);
     let reaction_search_term = use_state(|| None::<String>);
+    let mt_search_term = use_state(|| None::<String>);
     let element_search = (*element_search_term).as_ref().cloned();
     let nucleons_search = (*nucleons_search_term).as_ref().cloned();
     let reaction_search = (*reaction_search_term).as_ref().cloned();
+    let mt_search = (*mt_search_term).as_ref().cloned();
 
     let page = use_state(|| 0usize);
     let current_page = (*page).clone();
@@ -222,6 +225,7 @@ pub fn home() -> Html {
             let element = &entry.element;
             let nucleons = &entry.nucleons;
             let reaction = &entry.reaction;
+            let mt = &entry.mt;
 
             let element_match = match element_search {
                 Some(ref term) => element.to_lowercase().contains(&term.to_lowercase()),
@@ -235,8 +239,12 @@ pub fn home() -> Html {
                 Some(ref term) => reaction.to_lowercase().contains(&term.to_lowercase()),
                 None => true,
             };
+            let mt_match = match mt_search {
+                Some(ref term) => mt.to_string().contains(&*term),
+                None => true,
+            };
 
-            element_match && nucleons_match && reaction_match
+            element_match && nucleons_match && reaction_match && mt_match
         })
         .map(|(index, entry)| TableLine {
             original_index: index,
@@ -306,6 +314,18 @@ pub fn home() -> Html {
         })
     };
 
+    let oninput_mt_search = {
+        let mt_search_term = mt_search_term.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            if input.value().is_empty() {
+                mt_search_term.set(None);
+            } else {
+                mt_search_term.set(Some(input.value()));
+            }
+        })
+    };
+
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
         .show_first_last(true)
@@ -359,6 +379,18 @@ pub fn home() -> Html {
                     id="reaction-search" 
                     placeholder="Search by reaction" 
                     oninput={oninput_reaction_search} 
+                />
+            </div>
+            <div class="flex-grow-1 p-2 input-group mb-2">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="mt-search" 
+                    placeholder="Search by MT" 
+                    oninput={oninput_mt_search} 
                 />
             </div>
             <Table<TableLine> 
