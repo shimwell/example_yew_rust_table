@@ -2,7 +2,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Data {
-    pub data: Vec<(i32, String, i64)>,
+    pub data: Vec<Entry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Entry {
+    pub id: i32,
+    pub element: String,
+    pub nucleons: i32,
+    pub library: String,
+    pub reaction: String,
+    pub mt: i32,
+    pub temperature: String,
 }
 
 impl Default for Data {
@@ -12,14 +23,26 @@ impl Default for Data {
     }
 }
 
-fn load_data_from_str(json_str: &str) -> Result<Vec<(i32, String, i64)>, Box<dyn std::error::Error>> {
+fn load_data_from_str(json_str: &str) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
     let json_data: Vec<serde_json::Value> = serde_json::from_str(json_str)?;
     let mut data = Vec::new();
     for item in json_data {
-        let id = item["id"].as_i64().unwrap() as i32;
-        let name = item["name"].as_str().unwrap().to_string();
-        let value = item["value"].as_i64().unwrap();
-        data.push((id, name, value));
+        let id: i32  = item["id"].as_i64().unwrap() as i32;
+        let element = item["element"].as_str().unwrap().to_string();
+        let nucleons: i32 = item["nucleons"].as_i64().unwrap() as i32;
+        let library = item["library"].as_str().unwrap().to_string();
+        let reaction = item["reaction"].as_str().unwrap().to_string();
+        let mt: i32 = item["MT"].as_i64().unwrap() as i32;
+        let temperature = item["temperature"].as_str().unwrap().to_string();
+        data.push(Entry {
+            id,
+            element,
+            nucleons,
+            library,
+            reaction,
+            mt,
+            temperature,
+        });
     }
     Ok(data)
 }
@@ -36,7 +59,7 @@ impl yew::Reducible for Data {
         let mut new = (*self).clone();
         match action {
             DataActions::RemoveData(id) => {
-                new.data.retain(|(i, _, _)| i != &id);
+                new.data.retain(|entry| entry.id != id);
             }
         }
         std::rc::Rc::new(new)

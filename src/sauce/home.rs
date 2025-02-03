@@ -7,20 +7,18 @@ use yew_hooks::use_async;
 use yew_custom_components::pagination::Pagination;
 use yew_custom_components::table::{Options, Table};
 use yew_custom_components::table::types::{ColumnBuilder, TableData};
+use crate::types::mock_data::Entry;
+
 use plotly::{Plot, Scatter};
 use plotly::layout::{AxisType};
 use yew::prelude::*;
 use serde::Deserialize;
-use crate::types::mock_data::Data;
-// use cached::proc_macro::cached;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ReactionData {
     #[serde(rename = "energy")]
     energy_values: Vec<f64>,
     #[serde(rename = "cross section")]
-    // #[serde(rename = "cross_section")]
     cross_section_values: Vec<f64>,
 }
 
@@ -35,8 +33,6 @@ pub struct XsCache {
 pub struct PlotProps {
     pub selected_indexes: HashSet<usize>,
 }
-
-
 
 #[function_component(App)]
 pub fn plot_component(props: &PlotProps) -> Html {
@@ -95,7 +91,6 @@ pub fn plot_component(props: &PlotProps) -> Html {
         })
     };
 
-
     let onclick_toggle_x_log = {
         let is_x_log = is_x_log.clone();
         Callback::from(move |_| {
@@ -111,6 +106,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
             >
                 {if *is_y_log { "Switch Y to Linear Scale" } else { "Switch Y to Log Scale" }}
             </button>
+            <br/>
             <button 
                 onclick={onclick_toggle_x_log}
                 class="btn btn-primary mb-2"
@@ -122,11 +118,7 @@ pub fn plot_component(props: &PlotProps) -> Html {
     }
 }
 
-
 async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
-    // as nothing is selected initially this returns an empy strut
-    // I need this calling and updating the cache on every checkbox interaction
-
     let mut cache_energy_values = Vec::new();
     let mut cache_cross_section_values = Vec::new();
     let mut cache_checkbox_selected = Vec::new();
@@ -136,32 +128,23 @@ async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
         cache_energy_values.push(energy);
         cache_cross_section_values.push(cross_section);
         cache_checkbox_selected.push(true);
-
-        // Print the selected ID to the console
-        
         console::log_1(&selected_id.clone().into());
     }
 
-    // not sure why but this appears to be returning the same sort of data as the below hard coded version but it doesn't plot
     XsCache {
         energy_values: cache_energy_values,
         cross_section_values: cache_cross_section_values,
         checkbox_selected: cache_checkbox_selected,
     }
-
 }
 
-// #[cached(result = true, key = "()", convert = r#"{}"#)]
 async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Error> {
-
     let data = crate::types::mock_data::Data::default();
-
-    let Some(name) = get_name_by_id(&data, id) else { todo!() };
-    let output = convert_string(name);
+    let entry = data.data.iter().find(|entry| entry.id == id).expect("Entry not found");
+    let output = convert_string(entry);
     console::log_1(&serde_wasm_bindgen::to_value(&"output").unwrap());
     console::log_1(&serde_wasm_bindgen::to_value(&output).unwrap());
 
-    // let url = format!("https://raw.githubusercontent.com/shimwell/example_yew_rust_table/main/data_{}.json", id);
     let url = format!("https://raw.githubusercontent.com/openmc-data-storage/ENDF-B-VIII.0-NNDC-json/refs/heads/main/json_files/{output}.json");
 
     console::log_1(&serde_wasm_bindgen::to_value(&url).unwrap());
@@ -174,87 +157,51 @@ async fn get_values_by_id(id: i32) -> Result<(Vec<f64>, Vec<f64>), reqwest::Erro
     Ok((downloaded_reaction_data.energy_values, downloaded_reaction_data.cross_section_values))
 }
 
-fn get_name_by_id(data: &Data, id: i32) -> Option<&String> {
-    console::log_1(&serde_wasm_bindgen::to_value("get_name_by_id").unwrap());
-    console::log_1(&serde_wasm_bindgen::to_value(&id).unwrap());
-    let name = data.data.iter().find(|&&(i, _, _)| i == id).map(|&(_, ref name, _)| name);
-    if let Some(name) = name {
-        console::log_1(&serde_wasm_bindgen::to_value(&format!("Found name: {}", name)).unwrap());
-    } else {
-        console::log_1(&serde_wasm_bindgen::to_value("Name not found").unwrap());
-    }
-    name
+
+fn convert_string(entry: &Entry) -> String {
+    let element = entry.element.clone();
+    let nucleons = entry.nucleons.clone();
+    let library = entry.library.clone();
+    // let reaction = entry.reaction.clone();  // not needed as we have MT number
+    let particle:char = 'n';  // entry.particle.clone();
+    let mt = entry.mt.clone();
+    let temperature = entry.temperature.clone();
+    let output = format!("{}_{}_{}_{}_{}_{}", element, nucleons, library, particle, mt, temperature);
+    output
 }
 
-
-fn convert_string(input: &str) -> String {
-    let mut result = input.to_string();
-
-    // TODO the need different units
-    // Remove "damage-energy" if present
-    result = result.replace("damage-energy", "");
-    // Remove "damage-energy" if present
-    result = result.replace("heating", "");
-
-    // Extract the first token
-    let first_token = result.split_whitespace().next().unwrap_or("");
-
-    // Separate letters and numbers
-    let mut letters = String::new();
-    let mut numbers = String::new();
-    for c in first_token.chars() {
-        if c.is_alphabetic() {
-            letters.push(c);
-        } else if c.is_numeric() {
-            numbers.push(c);
-        }
-    }
-
-    let formatted_first_token = format!("{}_{}", letters, numbers);
-
-    // Replace the first token in the result
-    result = result.replacen(first_token, &formatted_first_token, 1);
-
-
-    while let Some(start) = result.find('(') {
-        if let Some(end) = result[start..].find(')') {
-            result.replace_range(start..=end + start, "");
-        } else {
-            break;
-        }
-    }
-    result = result.replace(" MT", "n_");
-    result = result.replace(" ", "_");
-    result
-}
 
 #[function_component(Home)]
 pub fn home() -> Html {
-    // Mock data holder
     let data = use_reducer(crate::types::mock_data::Data::default);
     let mock_data = (*data).clone();
 
-    // Search term
-    let search_term = use_state(|| None::<String>);
-    let search = (*search_term).as_ref().cloned();
+    let element_search_term = use_state(|| None::<String>);
+    let nucleons_search_term = use_state(|| None::<String>);
+    let reaction_search_term = use_state(|| None::<String>);
+    let mt_search_term = use_state(|| None::<String>);
+    let element_search = (*element_search_term).as_ref().cloned();
+    let nucleons_search = (*nucleons_search_term).as_ref().cloned();
+    let reaction_search = (*reaction_search_term).as_ref().cloned();
+    let mt_search = (*mt_search_term).as_ref().cloned();
 
-    // Pagination state
     let page = use_state(|| 0usize);
     let current_page = (*page).clone();
 
-    // Selected indexes for summing
     let selected_indexes = use_set(HashSet::<usize>::new());
     let sum = selected_indexes.current().len();
 
-    // Column definition
     let columns = vec![
         ColumnBuilder::new("select").orderable(true).short_name("Select").data_property("select").header_class("user-select-none").build(),
         ColumnBuilder::new("id").orderable(true).short_name("ID").data_property("id").header_class("user-select-none").build(),
-        ColumnBuilder::new("name").orderable(true).short_name("Name").data_property("name").header_class("user-select-none").build(),
-        ColumnBuilder::new("value").orderable(true).short_name("Value").data_property("value").header_class("user-select-none").build(),
+        ColumnBuilder::new("element").orderable(true).short_name("Element").data_property("element").header_class("user-select-none").build(),
+        ColumnBuilder::new("nucleons").orderable(true).short_name("Nucleons").data_property("nucleons").header_class("user-select-none").build(),
+        ColumnBuilder::new("reaction").orderable(true).short_name("Reaction").data_property("reaction").header_class("user-select-none").build(),
+        // ColumnBuilder::new("library").orderable(true).short_name("Library").data_property("library").header_class("user-select-none").build(),
+        ColumnBuilder::new("mt").orderable(true).short_name("MT").data_property("mt").header_class("user-select-none").build(),
+        // ColumnBuilder::new("temperature").orderable(true).short_name("Temperature").data_property("temperature").header_class("user-select-none").build(),
     ];
 
-    // Table options
     let options = Options {
         unordered_class: Some("fa-sort".to_string()),
         ascending_class: Some("fa-sort-up".to_string()),
@@ -262,7 +209,6 @@ pub fn home() -> Html {
         orderable_classes: vec!["mx-1".to_string(), "fa-solid".to_string()],
     };
 
-    // Handle sum
     let callback_sum = {
         let selected_indexes = selected_indexes.clone();
         Callback::from(move |index: usize| {
@@ -272,62 +218,114 @@ pub fn home() -> Html {
         })
     };
 
-    // Filter the full dataset based on the search term
     let filtered_data: Vec<TableLine> = mock_data.data
         .iter()
         .enumerate()
-        .filter(|(_, (_, name, _))| {
-            match search {
-                Some(ref term) => name.to_lowercase().contains(&term.to_lowercase()),
-                None => true, // If no search term, include all data
-            }
+        .filter(|(_, entry)| {
+            let element = &entry.element;
+            let nucleons = &entry.nucleons;
+            let reaction = &entry.reaction;
+            let mt = &entry.mt;
+
+            let element_match = match element_search {
+                Some(ref term) => element.to_lowercase().contains(&term.to_lowercase()),
+                None => true,
+            };
+            let nucleons_match = match nucleons_search {
+                Some(ref term) => nucleons.to_string().contains(&*term),
+                None => true,
+            };
+            let reaction_match = match reaction_search {
+                Some(ref term) => reaction.to_lowercase().contains(&term.to_lowercase()),
+                None => true,
+            };
+            let mt_match = match mt_search {
+                Some(ref term) => mt.to_string().contains(&*term),
+                None => true,
+            };
+
+            element_match && nucleons_match && reaction_match && mt_match
         })
-        .map(|(index, (id, name, value))| TableLine {
+        .map(|(index, entry)| TableLine {
             original_index: index,
-            id: *id,
-            name: name.clone(),
-            value: *value,
+            id: entry.id,
+            element: entry.element.clone(),
+            nucleons: entry.nucleons.clone(),
+            library: entry.library.clone(),
+            reaction: entry.reaction.clone(),
+            mt: entry.mt.clone(),
+            temperature: entry.temperature.clone(),
             checked: selected_indexes.current().contains(&index),
             sum_callback: callback_sum.clone(),
         })
         .collect();
 
-    // Pagination logic
-    let limit = 10; // Number of items per page
-
-    // Reset current_page to 0 if filtered_data is empty
+    let limit = 10;
     let current_page = if filtered_data.is_empty() {
-        0 // Reset to the first page if no data is found
+        0
     } else {
-        current_page.min((filtered_data.len() - 1) / limit) // Ensure current_page is within bounds
+        current_page.min((filtered_data.len() - 1) / limit)
     };
 
     let start_index = current_page * limit;
-    let end_index = (start_index + limit).min(filtered_data.len()); // Ensure end_index does not exceed filtered_data.len()
+    let end_index = (start_index + limit).min(filtered_data.len());
 
     let paginated_data = if filtered_data.is_empty() {
-        Vec::new() // Return an empty vector if no data is found
+        Vec::new()
     } else {
-        filtered_data[start_index..end_index].to_vec() // Slice the data
+        filtered_data[start_index..end_index].to_vec()
     };
 
-    // Ensure total is at least 1 for the Pagination component
     let total = filtered_data.len().max(1);
 
-    // Handle search input
-    let oninput_search = {
-        let search_term = search_term.clone();
+    let oninput_element_search = {
+        let element_search_term = element_search_term.clone();
         Callback::from(move |e: InputEvent| {
             let input: HtmlInputElement = e.target_unchecked_into();
             if input.value().is_empty() {
-                search_term.set(None);
+                element_search_term.set(None);
             } else {
-                search_term.set(Some(input.value()));
+                element_search_term.set(Some(input.value()));
             }
         })
     };
 
-    // Pagination options
+    let oninput_nucleon_search = {
+        let nucleons_search_term = nucleons_search_term.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            if input.value().is_empty() {
+                nucleons_search_term.set(None);
+            } else {
+                nucleons_search_term.set(Some(input.value()));
+            }
+        })
+    };
+
+    let oninput_reaction_search = {
+        let reaction_search_term = reaction_search_term.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            if input.value().is_empty() {
+                reaction_search_term.set(None);
+            } else {
+                reaction_search_term.set(Some(input.value()));
+            }
+        })
+    };
+
+    let oninput_mt_search = {
+        let mt_search_term = mt_search_term.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            if input.value().is_empty() {
+                mt_search_term.set(None);
+            } else {
+                mt_search_term.set(Some(input.value()));
+            }
+        })
+    };
+
     let pagination_options = yew_custom_components::pagination::Options::default()
         .show_prev_next(true)
         .show_first_last(true)
@@ -337,7 +335,6 @@ pub fn home() -> Html {
         .active_item_classes(vec!(String::from("active")))
         .disabled_item_classes(vec!(String::from("disabled")));
 
-    // Handle changing page
     let handle_page = {
         let page = page.clone();
         Callback::from(move |new_page: usize| {
@@ -352,20 +349,62 @@ pub fn home() -> Html {
                 <span class="input-group-text">
                     <i class="fas fa-search"></i>
                 </span>
-                <input class="form-control" type="text" id="search" placeholder="Search" oninput={oninput_search} />
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="element-search" 
+                    placeholder="Search by element" 
+                    oninput={oninput_element_search} 
+                />
+            </div>
+            <div class="flex-grow-1 p-2 input-group mb-2">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="nucleon-search" 
+                    placeholder="Search by nucleons" 
+                    oninput={oninput_nucleon_search} 
+                />
+            </div>
+            <div class="flex-grow-1 p-2 input-group mb-2">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="reaction-search" 
+                    placeholder="Search by reaction" 
+                    oninput={oninput_reaction_search} 
+                />
+            </div>
+            <div class="flex-grow-1 p-2 input-group mb-2">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    class="form-control" 
+                    type="text" 
+                    id="mt-search" 
+                    placeholder="Search by MT" 
+                    oninput={oninput_mt_search} 
+                />
             </div>
             <Table<TableLine> 
                 options={options.clone()} 
                 limit={Some(limit)} 
                 page={current_page} 
-                search={search.clone()} 
+                search={element_search.clone()} 
                 classes={classes!("table", "table-hover")} 
                 columns={columns.clone()} 
                 data={paginated_data} 
                 orderable={true}
             />
             <Pagination 
-                total={total} // Ensure total is at least 1
+                total={total}
                 limit={limit} 
                 max_pages={6} 
                 options={pagination_options} 
@@ -377,28 +416,30 @@ pub fn home() -> Html {
     )
 }
 
-
-
 #[derive(Clone, Serialize, Debug, Default)]
 struct TableLine {
     pub original_index: usize,
-    pub id: i32,
-    pub name: String,
-    pub value: i64,
     pub checked: bool,
+    pub id: i32,
+    pub element: String,
+    pub nucleons: i32,
+    pub library: String,
+    pub reaction: String,
+    pub mt: i32,
+    pub temperature: String,
     #[serde(skip_serializing)]
     pub sum_callback: Callback<usize>,
 }
 
 impl PartialEq<Self> for TableLine {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.value == other.value && self.checked == other.checked
+        self.element == other.element && self.nucleons == other.nucleons && self.checked == other.checked
     }
 }
 
 impl PartialOrd for TableLine {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.name.partial_cmp(&other.name)
+        self.element.partial_cmp(&other.element)
     }
 }
 
@@ -413,8 +454,11 @@ impl TableData for TableLine {
                 } /> )
             ),
             "id" => Ok(html! { self.id }),
-            "name" => Ok(html! { self.name.clone() }),
-            "value" => Ok(html! { self.value }),
+            "element" => Ok(html! { self.element.clone() }),
+            "nucleons" => Ok(html! { self.nucleons }),
+            "library" => Ok(html! { self.library.clone() }),
+            "reaction" => Ok(html! { self.reaction.clone() }),
+            "mt" => Ok(html! { self.mt }),
             _ => Ok(html! {}),
         }
     }
@@ -422,8 +466,11 @@ impl TableData for TableLine {
     fn get_field_as_value(&self, field_name: &str) -> yew_custom_components::table::error::Result<serde_value::Value> {
         match field_name {
             "id" => Ok(serde_value::Value::I32(self.id)),
-            "name" => Ok(serde_value::Value::String(self.name.clone())),
-            "value" => Ok(serde_value::Value::I64(self.value)),
+            "element" => Ok(serde_value::Value::String(self.element.clone())),
+            "nucleons" => Ok(serde_value::Value::I32(self.nucleons)),
+            "library" => Ok(serde_value::Value::String(self.library.clone())),
+            "reaction" => Ok(serde_value::Value::String(self.reaction.clone())),
+            "mt" => Ok(serde_value::Value::I32(self.mt)),
             "select" => Ok(serde_value::Value::Bool(self.checked)),
             _ => Ok(serde_value::to_value(()).unwrap()),
         }
@@ -431,7 +478,7 @@ impl TableData for TableLine {
 
     fn matches_search(&self, needle: Option<String>) -> bool {
         match needle {
-            Some(needle) => self.name.to_lowercase().contains(&needle.to_lowercase()),
+            Some(needle) => self.element.to_lowercase().contains(&needle.to_lowercase()),
             None => true,
         }
     }
