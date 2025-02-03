@@ -60,15 +60,20 @@ pub fn plot_component(props: &PlotProps) -> Html {
             }
 
             let y_axis = plotly::layout::Axis::new()
-                .title("Cross section")
+                .title("Cross section [barns]")
+                .show_line(true)
+                .zero_line(true)
+                // .range(0)  not sure how to set lower value
                 .type_(if *is_y_log { AxisType::Log } else { AxisType::Linear });
-
+            
             let x_axis = plotly::layout::Axis::new()
-                .title("Energy")
+                .title("Energy [eV]")
+                .zero_line(true)
+                .show_line(true)
                 .type_(if *is_x_log { AxisType::Log } else { AxisType::Linear });
 
             let layout = plotly::Layout::new()
-                .title("Cross sections plotted with XSPlot.com")
+                // .title("Cross sections plotted with XSPlot.com")
                 .show_legend(true)
                 .x_axis(x_axis)
                 .y_axis(y_axis);
@@ -99,26 +104,28 @@ pub fn plot_component(props: &PlotProps) -> Html {
     };
 
     html! {
-        <div>
+        <div style="text-align: center;">
+        <div class="d-flex mb-2">
             <button 
                 onclick={onclick_toggle_y_log}
-                class="btn btn-primary mb-2"
+                class="btn btn-primary me-2"
             >
                 {if *is_y_log { "Switch Y to Linear Scale" } else { "Switch Y to Log Scale" }}
             </button>
-            <br/>
             <button 
                 onclick={onclick_toggle_x_log}
-                class="btn btn-primary mb-2"
+                class="btn btn-primary"
             >
                 {if *is_x_log { "Switch X to Linear Scale" } else { "Switch X to Log Scale" }}
             </button>
-            <div id="plot-div"></div>
         </div>
+        <div id="plot-div"></div>
+    </div>
     }
 }
 
 async fn generate_cache(selected: &HashSet<usize>) -> XsCache {
+    // TODO add name to this so that when adding a trace the name can be set
     let mut cache_energy_values = Vec::new();
     let mut cache_cross_section_values = Vec::new();
     let mut cache_checkbox_selected = Vec::new();
@@ -344,55 +351,64 @@ pub fn home() -> Html {
 
     html!(
         <>
-            <h1>{"Minimal table Example"}</h1>
-            <div class="flex-grow-1 p-2 input-group mb-2">
-                <span class="input-group-text">
-                    <i class="fas fa-search"></i>
-                </span>
-                <input 
-                    class="form-control" 
-                    type="text" 
-                    id="element-search" 
-                    placeholder="Search by element" 
-                    oninput={oninput_element_search} 
-                />
+            <h1>{"Nuclide microscopic cross section plotter"}</h1>
+
+
+            <div class="d-flex mb-2">
+                <div class="flex-grow-1 p-2 input-group me-2">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input 
+                        class="form-control" 
+                        type="text" 
+                        id="element-search" 
+                        placeholder="Search by element" 
+                        oninput={oninput_element_search} 
+                    />
+                </div>
+                <div class="flex-grow-1 p-2 input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input 
+                        class="form-control" 
+                        type="text" 
+                        id="nucleon-search" 
+                        placeholder="Search by nucleons" 
+                        oninput={oninput_nucleon_search} 
+                    />
+                </div>
             </div>
-            <div class="flex-grow-1 p-2 input-group mb-2">
-                <span class="input-group-text">
-                    <i class="fas fa-search"></i>
-                </span>
-                <input 
-                    class="form-control" 
-                    type="text" 
-                    id="nucleon-search" 
-                    placeholder="Search by nucleons" 
-                    oninput={oninput_nucleon_search} 
-                />
+            
+            <div class="d-flex mb-2">
+                <div class="flex-grow-1 p-2 input-group me-2">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input 
+                        class="form-control" 
+                        type="text" 
+                        id="reaction-search" 
+                        placeholder="Search by reaction" 
+                        oninput={oninput_reaction_search} 
+                    />
+                </div>
+                <div class="flex-grow-1 p-2 input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input 
+                        class="form-control" 
+                        type="text" 
+                        id="mt-search" 
+                        placeholder="Search by MT" 
+                        oninput={oninput_mt_search} 
+                    />
+                </div>
             </div>
-            <div class="flex-grow-1 p-2 input-group mb-2">
-                <span class="input-group-text">
-                    <i class="fas fa-search"></i>
-                </span>
-                <input 
-                    class="form-control" 
-                    type="text" 
-                    id="reaction-search" 
-                    placeholder="Search by reaction" 
-                    oninput={oninput_reaction_search} 
-                />
-            </div>
-            <div class="flex-grow-1 p-2 input-group mb-2">
-                <span class="input-group-text">
-                    <i class="fas fa-search"></i>
-                </span>
-                <input 
-                    class="form-control" 
-                    type="text" 
-                    id="mt-search" 
-                    placeholder="Search by MT" 
-                    oninput={oninput_mt_search} 
-                />
-            </div>
+
+
             <Table<TableLine> 
                 options={options.clone()} 
                 limit={Some(limit)} 
